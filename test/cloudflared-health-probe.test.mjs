@@ -24,7 +24,7 @@ import { dirname, join } from 'node:path';
 import { writeFileSync, readFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { format } from 'node:util';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { CloudflaredManager, parseMetricsAddress } from '../lib/cloudflared-manager.mjs';
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), 'fixtures');
@@ -39,7 +39,11 @@ if (IS_WIN) {
   writeFileSync(FAKE_CMD, '@echo off\r\nnode "%~dp0fake-cloudflared.mjs" %*\r\n');
 }
 const FAKE_BIN = IS_WIN ? FAKE_CMD : FAKE_MJS;
-const FAKE_SPAWN_OPTS = IS_WIN ? { shell: true } : null;
+// Windows 下 spawn .cmd 需要 shell:true——由测试自带的 spawn 包装提供
+// （生产代码已不再接受外部 spawn 选项：杜绝把参数交给 shell 解释）
+const FAKE_SPAWN_IMPL = IS_WIN
+  ? (bin, args, opts) => spawn(bin, args, { ...opts, shell: true })
+  : undefined;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -245,7 +249,7 @@ test('metrics 地址迟到（就绪后才打印）→ 探针必须补启，不�
     token: 'fake-token',
     hostname: 'dsh.example.com',
     binaryPath: FAKE_BIN,
-    spawnOptions: FAKE_SPAWN_OPTS,
+    spawnImpl: FAKE_SPAWN_IMPL,
     retryPolicy: { baseDelayMs: 50, maxDelayMs: 200, maxRetries: 5 },
     handshakeTimeoutMs: 3000,
     healthProbeIntervalMs: 40,
@@ -282,7 +286,7 @@ test('假死持续不恢复：先可见降级，达重建阈值才终止进程�
     token: 'fake-token',
     hostname: 'dsh.example.com',
     binaryPath: FAKE_BIN,
-    spawnOptions: FAKE_SPAWN_OPTS,
+    spawnImpl: FAKE_SPAWN_IMPL,
     retryPolicy: { baseDelayMs: 40, maxDelayMs: 80, maxRetries: 5 },
     handshakeTimeoutMs: 3000,
     healthProbeIntervalMs: 40,
@@ -319,7 +323,7 @@ test('【防误杀回归】断网后自行恢复的连接器绝不能被探针�
     token: 'fake-token',
     hostname: 'dsh.example.com',
     binaryPath: FAKE_BIN,
-    spawnOptions: FAKE_SPAWN_OPTS,
+    spawnImpl: FAKE_SPAWN_IMPL,
     retryPolicy: { baseDelayMs: 40, maxDelayMs: 80, maxRetries: 5 },
     handshakeTimeoutMs: 3000,
     healthProbeIntervalMs: 40,
@@ -359,7 +363,7 @@ test('【防终态回归】健康探针触发的重建链路（含重启后握�
     token: 'fake-token',
     hostname: 'dsh.example.com',
     binaryPath: FAKE_BIN,
-    spawnOptions: FAKE_SPAWN_OPTS,
+    spawnImpl: FAKE_SPAWN_IMPL,
     // 终态上限故意设得极小：若仍允许终态，几次重试后必然出现 error
     retryPolicy: { baseDelayMs: 20, maxDelayMs: 40, maxRetries: 2 },
     // 握手超时必须**明显大于**假件的 spawn 延迟（Windows 上 .cmd + node 启动实测
@@ -418,7 +422,7 @@ test('【迟到就绪回归】握手超时已排定重连后，同一进程随�
     token: 'fake-token',
     hostname: 'dsh.example.com',
     binaryPath: FAKE_BIN,
-    spawnOptions: FAKE_SPAWN_OPTS,
+    spawnImpl: FAKE_SPAWN_IMPL,
     retryPolicy: { baseDelayMs: 500, maxDelayMs: 500, maxRetries: 5 },
     handshakeTimeoutMs: 300,
     healthProbeIntervalMs: 5000, // 关掉探活干扰：本用例只考察握手超时/重连链
@@ -461,7 +465,7 @@ test('连接器健康：探针不误杀，且探针确实在运行', async () =>
     token: 'fake-token',
     hostname: 'dsh.example.com',
     binaryPath: FAKE_BIN,
-    spawnOptions: FAKE_SPAWN_OPTS,
+    spawnImpl: FAKE_SPAWN_IMPL,
     retryPolicy: { baseDelayMs: 50, maxDelayMs: 200, maxRetries: 5 },
     handshakeTimeoutMs: 3000,
     healthProbeIntervalMs: 40,
@@ -524,7 +528,7 @@ test('未识别到 metrics 地址 → 显式告警 + 跳过探活 + 面板状态
     port: 3082,
     token: 'fake-token',
     binaryPath: FAKE_BIN,
-    spawnOptions: FAKE_SPAWN_OPTS,
+    spawnImpl: FAKE_SPAWN_IMPL,
     retryPolicy: { baseDelayMs: 50, maxDelayMs: 200, maxRetries: 5 },
     handshakeTimeoutMs: 3000,
     healthProbeIntervalMs: 40,
@@ -567,7 +571,7 @@ test('cloudflared 输出落盘：内容完整、Token 单块脱敏、超限轮�
     token: rawToken,
     hostname: 'dsh.example.com',
     binaryPath: FAKE_BIN,
-    spawnOptions: FAKE_SPAWN_OPTS,
+    spawnImpl: FAKE_SPAWN_IMPL,
     retryPolicy: { baseDelayMs: 50, maxDelayMs: 200, maxRetries: 5 },
     handshakeTimeoutMs: 3000,
     logFilePath: logFile,
@@ -610,7 +614,7 @@ test('Token 被切分在两个 stderr 块之间时仍必须脱敏（跨 chunk �
     token: rawToken,
     hostname: 'dsh.example.com',
     binaryPath: FAKE_BIN,
-    spawnOptions: FAKE_SPAWN_OPTS,
+    spawnImpl: FAKE_SPAWN_IMPL,
     retryPolicy: { baseDelayMs: 50, maxDelayMs: 200, maxRetries: 5 },
     handshakeTimeoutMs: 3000,
     logFilePath: logFile,

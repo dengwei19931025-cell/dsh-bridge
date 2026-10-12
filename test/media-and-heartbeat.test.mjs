@@ -87,8 +87,9 @@ test('QQ Node processes attachments and appends file path', async () => {
 test('Feishu Node processes media messages and appends file path', async () => {
   const ctx = makeMockCordisCtx()
   ctx.feishu = {
-    sendMarkdownCard: async () => ({ code: 0 }),
-    downloadMessageResource: async () => Buffer.from('mock image data'),
+    status: 'online',
+    sendText: async () => ({ messageId: 'om_t' }),
+    downloadResourceToFile: async () => ({ contentType: 'application/pdf', bytesWritten: 1024 }),
   }
   
   const node = new FeishuConversationNode(ctx, { allowFrom: ['user2'] }, ctx.logger())
@@ -103,13 +104,15 @@ test('Feishu Node processes media messages and appends file path', async () => {
   ]
 
   await ctx.emit('feishu/message', {
-    peerId: 'user2',
+    chatId: 'oc_user2',
+    peerId: 'oc_user2',
     senderId: 'user2',
     isGroup: false,
-    text: '',
+    // SDK 对文件消息的归一化正文是占位标记，不应投喂给模型
+    text: '<file key="fk_123" name="doc.pdf"/>',
     messageId: 'om_123',
-    messageType: 'file',
-    contentObj: { file_key: 'fk_123', file_name: 'doc.pdf' },
+    rawContentType: 'file',
+    resources: [{ type: 'file', fileKey: 'fk_123', fileName: 'doc.pdf' }],
   })
 
   assert.equal(events.length, 1)

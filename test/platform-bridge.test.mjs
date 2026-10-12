@@ -870,9 +870,14 @@ async function makeFeishuHarness() {
     configured: true,
     accountId: 'feishu-bot',
     capabilities: { supportsGroup: true, supportsMedia: true, supportsTyping: false, maxMessageChars: 2000 },
-    sendMarkdownCard: async (peerId, text) => { markdownSends.push({ peerId, text }); return { ok: true } },
-    sendCard: async (peerId, card) => { cardSends.push({ peerId, card }); return { ok: true, message_id: 'om_1' } },
-    sendText: async () => ({}),
+    sendText: async (peerId, text) => { markdownSends.push({ peerId, text }); return { messageId: 'om_t' } },
+    sendCard: async (peerId, card) => { cardSends.push({ peerId, card }); return { messageId: 'om_1' } },
+    sendMediaFile: async () => ({ success: true }),
+    openStream: async (peerId) => ({
+      to: peerId,
+      setContent: async () => {},
+      finish: async () => {},
+    }),
   }
   app.feishu = gateway
   const live = [{ id: 'session-f1', header: { createdAt: Date.now(), cwd: '/app' }, events: [], seq: 1 }]
@@ -889,7 +894,7 @@ test('飞书发起的审批：prepend 抢在宿主前、按钮卡片送达、按
   const harness = await makeFeishuHarness()
   const { app, node, cardSends } = harness
 
-  app.emit('feishu/message', { peerId: 'oc_u1', senderId: 'u1', isGroup: false, text: '创建文件', messageId: 'm1' })
+  app.emit('feishu/message', { chatId: 'oc_u1', peerId: 'oc_u1', senderId: 'u1', isGroup: false, text: '创建文件', messageId: 'm1', rawContentType: 'text', resources: [] })
   await new Promise((r) => setTimeout(r, 40))
 
   // 宿主式 GUI 认领监听器：桥必须先于它执行（prepend），且不得调用 next()
@@ -914,7 +919,7 @@ test('飞书：非发起者点击按钮被拒绝', async () => {
   const harness = await makeFeishuHarness()
   const { app, node, cardSends } = harness
 
-  app.emit('feishu/message', { peerId: 'oc_u1', senderId: 'u1', isGroup: false, text: '创建文件', messageId: 'm1' })
+  app.emit('feishu/message', { chatId: 'oc_u1', peerId: 'oc_u1', senderId: 'u1', isGroup: false, text: '创建文件', messageId: 'm1', rawContentType: 'text', resources: [] })
   await new Promise((r) => setTimeout(r, 40))
   const decide = app.waterfall('approval/request', { agent: { session: { id: 'session-f1' } }, toolName: 'write_file' }, () => Promise.resolve('unavailable'))
   await new Promise((r) => setTimeout(r, 40))

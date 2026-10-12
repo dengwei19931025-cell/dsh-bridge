@@ -6,6 +6,7 @@
 //   - 握手超时 → 只杀进程、不置 _stopped（可重试）
 //   - 版本解析 / 版本钉死校验
 import { test } from 'node:test';
+import { spawn } from 'node:child_process';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -24,8 +25,11 @@ const FAKE_BIN = IS_WIN ? join(FIXTURES, 'fake-cloudflared.cmd') : FAKE_SCRIPT;
 if (IS_WIN) {
   writeFileSync(FAKE_BIN, '@echo off\r\nnode "%~dp0fake-cloudflared.mjs" %*\r\n');
 }
-// Windows 下 spawn .cmd 需 shell:true；manager 通过 spawnOptions 注入（生产不传）。
-const FAKE_SPAWN_OPTS = IS_WIN ? { shell: true } : null;
+// Windows 下 spawn .cmd 需要 shell:true——由测试自带的 spawn 包装提供
+// （生产代码已不再接受外部 spawn 选项：杜绝把参数交给 shell 解释）
+const FAKE_SPAWN_IMPL = IS_WIN
+  ? (bin, args, opts) => spawn(bin, args, { ...opts, shell: true })
+  : undefined;
 
 const noopLogger = { info: () => {}, error: () => {}, warn: () => {}, debug: () => {} };
 
@@ -74,7 +78,7 @@ test('就绪后意外退出（如崩溃/误杀）→ 退避自动重启并恢复
     token: 'fake-token',
     hostname: 'dsh.example.com',
     binaryPath: FAKE_BIN,
-    spawnOptions: FAKE_SPAWN_OPTS,
+    spawnImpl: FAKE_SPAWN_IMPL,
     retryPolicy: { baseDelayMs: 50, maxDelayMs: 200, maxRetries: 5 }, // 测试用小退避
     handshakeTimeoutMs: 2000,
     onStateChange: rec.onState,
@@ -110,7 +114,7 @@ test('用户 stop() 后意外退出不再自愈', async () => {
     port: 3082,
     token: 'fake-token',
     binaryPath: FAKE_BIN,
-    spawnOptions: FAKE_SPAWN_OPTS,
+    spawnImpl: FAKE_SPAWN_IMPL,
     retryPolicy: { baseDelayMs: 50, maxDelayMs: 200, maxRetries: 5 },
     handshakeTimeoutMs: 2000,
     onStateChange: rec.onState,
@@ -147,7 +151,7 @@ test('启动秒退（如 token 错误）→ 退避重试直至成功或超限', 
     port: 3082,
     token: 'bad-token',
     binaryPath: FAKE_BIN,
-    spawnOptions: FAKE_SPAWN_OPTS,
+    spawnImpl: FAKE_SPAWN_IMPL,
     retryPolicy: { baseDelayMs: 30, maxDelayMs: 120, maxRetries: 4 },
     handshakeTimeoutMs: 2000,
     onStateChange: rec.onState,
@@ -179,7 +183,7 @@ test('握手超时只杀进程不置 _stopped：之后可成功重试', async ()
     port: 3082,
     token: 'fake-token',
     binaryPath: FAKE_BIN,
-    spawnOptions: FAKE_SPAWN_OPTS,
+    spawnImpl: FAKE_SPAWN_IMPL,
     retryPolicy: { baseDelayMs: 50, maxDelayMs: 200, maxRetries: 5 },
     handshakeTimeoutMs: 150, // 注入极小超时
     onStateChange: rec.onState,
@@ -207,7 +211,7 @@ test('manager 意外退出与 stop 生命周期：stop 后 exit 事件不清新�
     port: 3082,
     token: 'fake-token',
     binaryPath: FAKE_BIN,
-    spawnOptions: FAKE_SPAWN_OPTS,
+    spawnImpl: FAKE_SPAWN_IMPL,
     retryPolicy: { baseDelayMs: 50, maxDelayMs: 200, maxRetries: 5 },
     handshakeTimeoutMs: 2000,
     onStateChange: rec.onState,
@@ -262,7 +266,7 @@ test('token 固定域名模式：--no-autoupdate 位于 run 前，隧道可正�
     token: 'cf-fixed-domain-token',
     hostname: 'dsh.example.com',
     binaryPath: FAKE_BIN,
-    spawnOptions: FAKE_SPAWN_OPTS,
+    spawnImpl: FAKE_SPAWN_IMPL,
     retryPolicy: { baseDelayMs: 50, maxDelayMs: 200, maxRetries: 2 },
     handshakeTimeoutMs: 3000,
     noAutoupdate: true, // 显式：默认即 true，回归 #35 的场景
@@ -293,7 +297,7 @@ test('确定性配置错误（Incorrect Usage）→ 直接 error，不进入退�
     port: 3082,
     token: 'fake-token',
     binaryPath: FAKE_BIN,
-    spawnOptions: FAKE_SPAWN_OPTS,
+    spawnImpl: FAKE_SPAWN_IMPL,
     retryPolicy: { baseDelayMs: 30, maxDelayMs: 120, maxRetries: 5 },
     handshakeTimeoutMs: 2000,
     onStateChange: rec.onState,

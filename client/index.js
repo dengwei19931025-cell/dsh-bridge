@@ -1522,7 +1522,7 @@ const AccessAuthCard = React.memo(function AccessAuthCard({ auth, rpcCall, onUpd
 
 // ---- 通用 IM 平台卡片 ----
 
-function PlatformCard({ platformId, platformName, platformDesc, rpcCall }) {
+function PlatformCard({ platformId, platformName, platformDesc, rpcCall, platformRecommended = false }) {
   const [platform, setPlatform] = React.useState(null);
   const [err, setErr] = React.useState(null);
   const [busy, setBusy] = React.useState(false);
@@ -1614,6 +1614,10 @@ function PlatformCard({ platformId, platformName, platformDesc, rpcCall }) {
   }, [rpcCall, load, platformId]);
 
   const onLogin = React.useCallback(() => act(BRIDGE_ENDPOINTS.platformLogin, {}), [act]);
+  // 飞书一键创建应用：官方 registerApp 扫码流程（返回后由轮询刷新二维码与结果）
+  const onRegisterApp = React.useCallback(() => act(BRIDGE_ENDPOINTS.platformLogin, { qrType: 'register' }), [act]);
+  // 重新生成二维码：作废旧设备码并立即换新码
+  const onRefreshQr = React.useCallback(() => act(BRIDGE_ENDPOINTS.platformLogin, { qrType: 'register', refresh: true }), [act]);
   const onStop  = React.useCallback(() => act(BRIDGE_ENDPOINTS.platformStop, {}), [act]);
   // 断开后重连：凭证仍在（configured）时直接用已存凭证重启网关，无需重新扫码；
   // 只有解绑后（无凭证）才走扫码/绑定流程
@@ -1744,6 +1748,15 @@ function PlatformCard({ platformId, platformName, platformDesc, rpcCall }) {
           platformId === 'feishu' && React.createElement(Icons.feishu, { style: { color: '#00D6B9', width: 20, height: 20 } }),
           platformId === 'telegram' && React.createElement(Icons.telegram, { style: { color: '#24A1DE', width: 20, height: 20 } }),
           platformName,
+          platformRecommended && React.createElement('span', {
+            style: {
+              fontSize: 10, lineHeight: '16px', padding: '0 6px', borderRadius: 8,
+              border: '1px solid var(--dsw-alias-brand-primary,#4f6ef7)',
+              color: 'var(--dsw-alias-brand-primary,#4f6ef7)',
+              background: 'var(--dsw-alias-state-info-bg,#eff6ff)',
+              fontWeight: 600, flexShrink: 0,
+            },
+          }, '推荐'),
         ),
         React.createElement('div', { style: { ...s.muted, marginTop: 2 } }, platformDesc),
       ),
@@ -2057,9 +2070,22 @@ function PlatformCard({ platformId, platformName, platformDesc, rpcCall }) {
             React.createElement('div', { style: { ...s.muted, marginTop: 4 } },
               login.phase === 'scaned'
                 ? '已扫码，请在手机上确认…'
-                : (platformId === 'wechat' ? '请使用微信扫码登录（ClawBot）' : '请扫码登录')
+                : (platformId === 'wechat'
+                    ? '请使用微信扫码登录（ClawBot）'
+                    : platformId === 'feishu'
+                      ? '请用飞书扫码创建应用（二维码 10 分钟内有效）'
+                      : '请扫码登录')
             ),
             login.error && React.createElement('div', { style: { ...s.muted, marginTop: 4, color: 'var(--dsw-alias-label-primary, #0f1115)' } }, login.error),
+            platformId === 'feishu' && React.createElement('div', { style: { display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' } },
+              React.createElement('button', {
+                style: { ...s.btnGhost, opacity: busy ? 0.5 : 1 },
+                onClick: onRefreshQr,
+                disabled: busy,
+                title: '作废当前二维码并重新生成（旧码立即失效）',
+              }, busy ? '生成中…' : '🔄 重新生成二维码'),
+              React.createElement('span', { style: { ...s.muted, fontSize: 12 } }, '扫不出来或已过期时可点此换新码'),
+            ),
           )
         : (platformId === 'qq' || platformId === 'feishu' || platformId === 'telegram')
           ? React.createElement('div', { style: { display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 } },
@@ -2068,15 +2094,24 @@ function PlatformCard({ platformId, platformName, platformDesc, rpcCall }) {
                   background: 'var(--dsw-alias-bg-layer-1,#ffffff)',
                   border: '1px dashed var(--dsw-alias-border-l2,#e5e7eb)',
                   borderRadius: 6,
-                  padding: '8px 10px',
+                  padding: '10px',
                   fontSize: 12,
                   lineHeight: 1.5,
                 },
               },
-                React.createElement('span', { style: s.label }, '💡 扫码自动创建引导：'),
-                React.createElement('span', { style: s.muted }, ' 可在终端运行 '),
-                React.createElement('code', { style: { ...s.code, fontSize: 11, background: 'var(--dsw-alias-bg-layer-2,#f3f4f6)', padding: '2px 4px', borderRadius: 4 } }, 'npx feishu-bot-bootstrap'),
-                React.createElement('span', { style: s.muted }, ' 手机扫码一键自动创建应用并输出凭证；或在下方手动填入凭证。')
+                React.createElement('div', { style: { ...s.label, marginBottom: 4 } }, '📱 一键创建飞书应用（推荐）'),
+                React.createElement('div', { style: { ...s.muted, marginBottom: 8 } },
+                  '点击后用飞书扫码：自动创建机器人应用并预置所需权限、事件订阅与卡片回调，无需进开发者后台手工配置。'),
+                React.createElement('button', {
+                  style: { ...s.btnPri, opacity: busy ? 0.5 : 1 },
+                  onClick: onRegisterApp,
+                  disabled: busy,
+                  title: '使用飞书扫码创建应用并自动填入凭证',
+                }, busy ? '处理中…' : '扫码一键创建应用'),
+                React.createElement('div', { style: { ...s.muted, marginTop: 8, fontSize: 11 } },
+                  '已有应用？在下方手动填入 App ID 与 App Secret，或 ',
+                  React.createElement('a', { href: 'https://open.feishu.cn/app', target: '_blank', rel: 'noopener noreferrer', style: s.btnLink }, '前往飞书开放平台'),
+                  ' 创建后填入。'),
               ),
               platformId === 'telegram'
                 ? React.createElement(React.Fragment, null,
@@ -3302,7 +3337,8 @@ function BridgePanel({ rpcCall, preferredTab }) {
   // #55：平台清单查询失败必须与“真·不支持”区分展示，不再把失败画成“即将支持”
   const [platformsError, setPlatformsError] = React.useState(null);
   const [platformsSeq, setPlatformsSeq] = React.useState(0);
-  const [selectedPlatform, setSelectedPlatform] = React.useState('wechat');
+  // 默认选中飞书（面板顺序第一、接入门槛最低：扫码一键创建）
+  const [selectedPlatform, setSelectedPlatform] = React.useState('feishu');
 
   // 隧道页"主入口"地址复制反馈
   const [copiedUrl, setCopiedUrl] = React.useState('');
@@ -3720,12 +3756,27 @@ function BridgePanel({ rpcCall, preferredTab }) {
     );
   } else if (activeTab === 'im') {
     // 从 listPlatforms 动态生成平台列表
+    // 顺序即面板顺序：飞书置顶（扫码一键创建 + 原生斜杠指令 + 云文档评论，接入门槛最低）
     const IM_PLATFORMS = [
+      { id: 'feishu',   label: '飞书',     icon: Icons.feishu,   brandColor: '#00D6B9', desc: '扫码一键创建 · 斜杠指令 · 文档评论', recommended: true },
       { id: 'wechat',   label: '微信',     icon: Icons.wechat,   brandColor: '#07C160', desc: 'ClawBot 扫码直连 · 无需公网' },
       { id: 'qq',       label: 'QQ',       icon: Icons.qq,       brandColor: '#12B7F5', desc: '官方机器人 · 私聊/群聊/按钮' },
-      { id: 'feishu',   label: '飞书',     icon: Icons.feishu,   brandColor: '#00D6B9', desc: '官方 WebSocket 长连接 · 免公网' },
       { id: 'telegram', label: 'Telegram', icon: Icons.telegram, brandColor: '#24A1DE', desc: '官方 Bot API' },
     ];
+    /** 「推荐」小标签（品牌色描边胶囊） */
+    const RecommendedTag = () => React.createElement('span', {
+      style: {
+        fontSize: 10,
+        lineHeight: '16px',
+        padding: '0 6px',
+        borderRadius: 8,
+        border: '1px solid var(--dsw-alias-brand-primary,#4f6ef7)',
+        color: 'var(--dsw-alias-brand-primary,#4f6ef7)',
+        background: 'var(--dsw-alias-state-info-bg,#eff6ff)',
+        fontWeight: 600,
+        flexShrink: 0,
+      },
+    }, '推荐');
     
     tabContent = React.createElement('div', null,
       // #55：清单查询失败时显错 + 重试，不再静默画成“即将支持”
@@ -3742,7 +3793,7 @@ function BridgePanel({ rpcCall, preferredTab }) {
       React.createElement('div', {
         style: { display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' },
       },
-        IM_PLATFORMS.map(({ id, label, icon: IconComponent, brandColor, desc }) => {
+        IM_PLATFORMS.map(({ id, label, icon: IconComponent, brandColor, desc, recommended }) => {
           // #55：四个平台全量支持，不存在“即将支持”——缺数据只可能是加载中或异常
           const loaded = platforms !== null && !platformsError;
           const platformData = loaded ? platforms[id] : undefined;
@@ -3765,9 +3816,10 @@ function BridgePanel({ rpcCall, preferredTab }) {
             onClick: available ? () => setSelectedPlatform(id) : undefined,
           },
             React.createElement('div', { style: { ...s.label, fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'space-between' } },
-              React.createElement('span', { style: { display: 'flex', alignItems: 'center', gap: 7 } },
+              React.createElement('span', { style: { display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 } },
                 IconComponent && React.createElement(IconComponent, { style: { color: brandColor, width: 18, height: 18, flexShrink: 0 } }),
                 label,
+                recommended && React.createElement(RecommendedTag),
               ),
               active && React.createElement('span', {
                 style: { width: 6, height: 6, borderRadius: '50%', background: 'var(--dsw-alias-state-success-primary,#10b981)', flexShrink: 0 },
@@ -3786,6 +3838,7 @@ function BridgePanel({ rpcCall, preferredTab }) {
       // 显示选中的平台卡片（带有 key 保证切换时重置表单状态）
       selectedPlatform && platforms?.[selectedPlatform] && React.createElement(PlatformCard, {
         key: selectedPlatform,
+        platformRecommended: IM_PLATFORMS.find(p => p.id === selectedPlatform)?.recommended === true,
         platformId: selectedPlatform,
         platformName: IM_PLATFORMS.find(p => p.id === selectedPlatform)?.label ?? selectedPlatform,
         platformDesc: IM_PLATFORMS.find(p => p.id === selectedPlatform)?.desc ?? '',

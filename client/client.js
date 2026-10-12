@@ -3810,7 +3810,7 @@ var AccessAuthCard = React.memo(function AccessAuthCard2({ auth, rpcCall, onUpda
     )
   );
 });
-function PlatformCard({ platformId, platformName, platformDesc, rpcCall }) {
+function PlatformCard({ platformId, platformName, platformDesc, rpcCall, platformRecommended = false }) {
   const [platform, setPlatform] = React.useState(null);
   const [err, setErr] = React.useState(null);
   const [busy, setBusy] = React.useState(false);
@@ -3895,6 +3895,8 @@ function PlatformCard({ platformId, platformName, platformDesc, rpcCall }) {
     }
   }, [rpcCall, load, platformId]);
   const onLogin = React.useCallback(() => act(BRIDGE_ENDPOINTS.platformLogin, {}), [act]);
+  const onRegisterApp = React.useCallback(() => act(BRIDGE_ENDPOINTS.platformLogin, { qrType: "register" }), [act]);
+  const onRefreshQr = React.useCallback(() => act(BRIDGE_ENDPOINTS.platformLogin, { qrType: "register", refresh: true }), [act]);
   const onStop = React.useCallback(() => act(BRIDGE_ENDPOINTS.platformStop, {}), [act]);
   const onReconnect = React.useCallback(() => {
     if (platform?.configured) return act(BRIDGE_ENDPOINTS.platformStart, {});
@@ -3993,7 +3995,20 @@ function PlatformCard({ platformId, platformName, platformDesc, rpcCall }) {
           platformId === "qq" && React.createElement(Icons.qq, { style: { color: "#12B7F5", width: 20, height: 20 } }),
           platformId === "feishu" && React.createElement(Icons.feishu, { style: { color: "#00D6B9", width: 20, height: 20 } }),
           platformId === "telegram" && React.createElement(Icons.telegram, { style: { color: "#24A1DE", width: 20, height: 20 } }),
-          platformName
+          platformName,
+          platformRecommended && React.createElement("span", {
+            style: {
+              fontSize: 10,
+              lineHeight: "16px",
+              padding: "0 6px",
+              borderRadius: 8,
+              border: "1px solid var(--dsw-alias-brand-primary,#4f6ef7)",
+              color: "var(--dsw-alias-brand-primary,#4f6ef7)",
+              background: "var(--dsw-alias-state-info-bg,#eff6ff)",
+              fontWeight: 600,
+              flexShrink: 0
+            }
+          }, "\u63A8\u8350")
         ),
         React.createElement("div", { style: { ...s.muted, marginTop: 2 } }, platformDesc)
       ),
@@ -4374,9 +4389,20 @@ function PlatformCard({ platformId, platformName, platformDesc, rpcCall }) {
         React.createElement(
           "div",
           { style: { ...s.muted, marginTop: 4 } },
-          login.phase === "scaned" ? "\u5DF2\u626B\u7801\uFF0C\u8BF7\u5728\u624B\u673A\u4E0A\u786E\u8BA4\u2026" : platformId === "wechat" ? "\u8BF7\u4F7F\u7528\u5FAE\u4FE1\u626B\u7801\u767B\u5F55\uFF08ClawBot\uFF09" : "\u8BF7\u626B\u7801\u767B\u5F55"
+          login.phase === "scaned" ? "\u5DF2\u626B\u7801\uFF0C\u8BF7\u5728\u624B\u673A\u4E0A\u786E\u8BA4\u2026" : platformId === "wechat" ? "\u8BF7\u4F7F\u7528\u5FAE\u4FE1\u626B\u7801\u767B\u5F55\uFF08ClawBot\uFF09" : platformId === "feishu" ? "\u8BF7\u7528\u98DE\u4E66\u626B\u7801\u521B\u5EFA\u5E94\u7528\uFF08\u4E8C\u7EF4\u7801 10 \u5206\u949F\u5185\u6709\u6548\uFF09" : "\u8BF7\u626B\u7801\u767B\u5F55"
         ),
-        login.error && React.createElement("div", { style: { ...s.muted, marginTop: 4, color: "var(--dsw-alias-label-primary, #0f1115)" } }, login.error)
+        login.error && React.createElement("div", { style: { ...s.muted, marginTop: 4, color: "var(--dsw-alias-label-primary, #0f1115)" } }, login.error),
+        platformId === "feishu" && React.createElement(
+          "div",
+          { style: { display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap", alignItems: "center" } },
+          React.createElement("button", {
+            style: { ...s.btnGhost, opacity: busy ? 0.5 : 1 },
+            onClick: onRefreshQr,
+            disabled: busy,
+            title: "\u4F5C\u5E9F\u5F53\u524D\u4E8C\u7EF4\u7801\u5E76\u91CD\u65B0\u751F\u6210\uFF08\u65E7\u7801\u7ACB\u5373\u5931\u6548\uFF09"
+          }, busy ? "\u751F\u6210\u4E2D\u2026" : "\u{1F504} \u91CD\u65B0\u751F\u6210\u4E8C\u7EF4\u7801"),
+          React.createElement("span", { style: { ...s.muted, fontSize: 12 } }, "\u626B\u4E0D\u51FA\u6765\u6216\u5DF2\u8FC7\u671F\u65F6\u53EF\u70B9\u6B64\u6362\u65B0\u7801")
+        )
       ) : platformId === "qq" || platformId === "feishu" || platformId === "telegram" ? React.createElement(
         "div",
         { style: { display: "flex", flexDirection: "column", gap: 10, marginTop: 4 } },
@@ -4387,15 +4413,30 @@ function PlatformCard({ platformId, platformName, platformDesc, rpcCall }) {
               background: "var(--dsw-alias-bg-layer-1,#ffffff)",
               border: "1px dashed var(--dsw-alias-border-l2,#e5e7eb)",
               borderRadius: 6,
-              padding: "8px 10px",
+              padding: "10px",
               fontSize: 12,
               lineHeight: 1.5
             }
           },
-          React.createElement("span", { style: s.label }, "\u{1F4A1} \u626B\u7801\u81EA\u52A8\u521B\u5EFA\u5F15\u5BFC\uFF1A"),
-          React.createElement("span", { style: s.muted }, " \u53EF\u5728\u7EC8\u7AEF\u8FD0\u884C "),
-          React.createElement("code", { style: { ...s.code, fontSize: 11, background: "var(--dsw-alias-bg-layer-2,#f3f4f6)", padding: "2px 4px", borderRadius: 4 } }, "npx feishu-bot-bootstrap"),
-          React.createElement("span", { style: s.muted }, " \u624B\u673A\u626B\u7801\u4E00\u952E\u81EA\u52A8\u521B\u5EFA\u5E94\u7528\u5E76\u8F93\u51FA\u51ED\u8BC1\uFF1B\u6216\u5728\u4E0B\u65B9\u624B\u52A8\u586B\u5165\u51ED\u8BC1\u3002")
+          React.createElement("div", { style: { ...s.label, marginBottom: 4 } }, "\u{1F4F1} \u4E00\u952E\u521B\u5EFA\u98DE\u4E66\u5E94\u7528\uFF08\u63A8\u8350\uFF09"),
+          React.createElement(
+            "div",
+            { style: { ...s.muted, marginBottom: 8 } },
+            "\u70B9\u51FB\u540E\u7528\u98DE\u4E66\u626B\u7801\uFF1A\u81EA\u52A8\u521B\u5EFA\u673A\u5668\u4EBA\u5E94\u7528\u5E76\u9884\u7F6E\u6240\u9700\u6743\u9650\u3001\u4E8B\u4EF6\u8BA2\u9605\u4E0E\u5361\u7247\u56DE\u8C03\uFF0C\u65E0\u9700\u8FDB\u5F00\u53D1\u8005\u540E\u53F0\u624B\u5DE5\u914D\u7F6E\u3002"
+          ),
+          React.createElement("button", {
+            style: { ...s.btnPri, opacity: busy ? 0.5 : 1 },
+            onClick: onRegisterApp,
+            disabled: busy,
+            title: "\u4F7F\u7528\u98DE\u4E66\u626B\u7801\u521B\u5EFA\u5E94\u7528\u5E76\u81EA\u52A8\u586B\u5165\u51ED\u8BC1"
+          }, busy ? "\u5904\u7406\u4E2D\u2026" : "\u626B\u7801\u4E00\u952E\u521B\u5EFA\u5E94\u7528"),
+          React.createElement(
+            "div",
+            { style: { ...s.muted, marginTop: 8, fontSize: 11 } },
+            "\u5DF2\u6709\u5E94\u7528\uFF1F\u5728\u4E0B\u65B9\u624B\u52A8\u586B\u5165 App ID \u4E0E App Secret\uFF0C\u6216 ",
+            React.createElement("a", { href: "https://open.feishu.cn/app", target: "_blank", rel: "noopener noreferrer", style: s.btnLink }, "\u524D\u5F80\u98DE\u4E66\u5F00\u653E\u5E73\u53F0"),
+            " \u521B\u5EFA\u540E\u586B\u5165\u3002"
+          )
         ),
         platformId === "telegram" ? React.createElement(
           React.Fragment,
@@ -5745,7 +5786,7 @@ function BridgePanel({ rpcCall, preferredTab }) {
   const [platforms, setPlatforms] = React.useState(null);
   const [platformsError, setPlatformsError] = React.useState(null);
   const [platformsSeq, setPlatformsSeq] = React.useState(0);
-  const [selectedPlatform, setSelectedPlatform] = React.useState("wechat");
+  const [selectedPlatform, setSelectedPlatform] = React.useState("feishu");
   const [copiedUrl, setCopiedUrl] = React.useState("");
   const copyEntryUrl = React.useCallback((url) => {
     const done = () => {
@@ -6149,11 +6190,24 @@ function BridgePanel({ rpcCall, preferredTab }) {
     );
   } else if (activeTab === "im") {
     const IM_PLATFORMS = [
+      { id: "feishu", label: "\u98DE\u4E66", icon: Icons.feishu, brandColor: "#00D6B9", desc: "\u626B\u7801\u4E00\u952E\u521B\u5EFA \xB7 \u659C\u6760\u6307\u4EE4 \xB7 \u6587\u6863\u8BC4\u8BBA", recommended: true },
       { id: "wechat", label: "\u5FAE\u4FE1", icon: Icons.wechat, brandColor: "#07C160", desc: "ClawBot \u626B\u7801\u76F4\u8FDE \xB7 \u65E0\u9700\u516C\u7F51" },
       { id: "qq", label: "QQ", icon: Icons.qq, brandColor: "#12B7F5", desc: "\u5B98\u65B9\u673A\u5668\u4EBA \xB7 \u79C1\u804A/\u7FA4\u804A/\u6309\u94AE" },
-      { id: "feishu", label: "\u98DE\u4E66", icon: Icons.feishu, brandColor: "#00D6B9", desc: "\u5B98\u65B9 WebSocket \u957F\u8FDE\u63A5 \xB7 \u514D\u516C\u7F51" },
       { id: "telegram", label: "Telegram", icon: Icons.telegram, brandColor: "#24A1DE", desc: "\u5B98\u65B9 Bot API" }
     ];
+    const RecommendedTag = () => React.createElement("span", {
+      style: {
+        fontSize: 10,
+        lineHeight: "16px",
+        padding: "0 6px",
+        borderRadius: 8,
+        border: "1px solid var(--dsw-alias-brand-primary,#4f6ef7)",
+        color: "var(--dsw-alias-brand-primary,#4f6ef7)",
+        background: "var(--dsw-alias-state-info-bg,#eff6ff)",
+        fontWeight: 600,
+        flexShrink: 0
+      }
+    }, "\u63A8\u8350");
     tabContent = React.createElement(
       "div",
       null,
@@ -6178,7 +6232,7 @@ function BridgePanel({ rpcCall, preferredTab }) {
         {
           style: { display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }
         },
-        IM_PLATFORMS.map(({ id, label, icon: IconComponent, brandColor, desc }) => {
+        IM_PLATFORMS.map(({ id, label, icon: IconComponent, brandColor, desc, recommended }) => {
           const loaded = platforms !== null && !platformsError;
           const platformData = loaded ? platforms[id] : void 0;
           const available = !!platformData;
@@ -6205,9 +6259,10 @@ function BridgePanel({ rpcCall, preferredTab }) {
               { style: { ...s.label, fontSize: 13, display: "flex", alignItems: "center", justifyContent: "space-between" } },
               React.createElement(
                 "span",
-                { style: { display: "flex", alignItems: "center", gap: 7 } },
+                { style: { display: "flex", alignItems: "center", gap: 7, minWidth: 0 } },
                 IconComponent && React.createElement(IconComponent, { style: { color: brandColor, width: 18, height: 18, flexShrink: 0 } }),
-                label
+                label,
+                recommended && React.createElement(RecommendedTag)
               ),
               active && React.createElement("span", {
                 style: { width: 6, height: 6, borderRadius: "50%", background: "var(--dsw-alias-state-success-primary,#10b981)", flexShrink: 0 }
@@ -6226,6 +6281,7 @@ function BridgePanel({ rpcCall, preferredTab }) {
       // 显示选中的平台卡片（带有 key 保证切换时重置表单状态）
       selectedPlatform && platforms?.[selectedPlatform] && React.createElement(PlatformCard, {
         key: selectedPlatform,
+        platformRecommended: IM_PLATFORMS.find((p) => p.id === selectedPlatform)?.recommended === true,
         platformId: selectedPlatform,
         platformName: IM_PLATFORMS.find((p) => p.id === selectedPlatform)?.label ?? selectedPlatform,
         platformDesc: IM_PLATFORMS.find((p) => p.id === selectedPlatform)?.desc ?? "",

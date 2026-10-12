@@ -1,8 +1,8 @@
 {
   "name": "@wenbin_wb/dsh-bridge",
-  "version": "2.13.0",
+  "version": "2.14.0",
   "description": "DSH 远程连接/远程控制插件（remote control）：手机扫码即可在移动端/公网继续用 DeepSeek Harness，人不在电脑前也能接着干。一键局域网二维码、Cloudflare 公网隧道、自建隧道与微信 / QQ / 飞书 / Telegram Bot（多工作区/会话持久化/媒体/卡片审批/流式输出），无需自己搭公网服务器。",
-  "releaseNotes": "【v2.13.0】隧道可观测性版（issue #71 全面响应）：修复远端面板实时通道每约 2 分钟被链路空闲掐断（SSE 自动保活，实测 126 秒必断 → 修复后稳定存活 165s+）；新增公网数据面端到端探测（每 60s，/ready 假绿一眼识别、疑似 DNS 污染自动标注解析 IP）、cloudflared 网络参数白名单（协议/边缘 IP/区域，官方取值、默认零变化、按实际二进制能力门控）、同 Tunnel Token 外部 cloudflared 冲突告警；面板展示实际 cloudflared 路径/版本/来源。",
+  "releaseNotes": "【v2.14.0】飞书链路整体重做：底层从自写协议栈全面替换为飞书官方 Channel SDK（长连接/事件归一化/消息渲染与分片/流式卡片/媒体上传下载全部官方实现），接入方式从「进开发者后台逐项配权限、抄 App ID/Secret」变成手机扫码一键创建应用（权限、事件订阅、卡片回调自动预置）。同时新增：原生斜杠指令面板（/help、/new、/sessions 等 10 条自动注册）、云文档评论 @机器人（回答回到评论线程）、审批卡片决议后原地更新（显示决议者/发起人，超时与取消同样标出）；并修复单聊出站全量丢失（issue #72，改用会话 chat_id）、鸿蒙端表格不渲染（含表格回复改卡片渲染）、审批卡片决议后不更新。其它改进：话题群回复留在原话题、引用回复带上下文、群聊标注发送者昵称、机器人互 @ 回环防护、大文件流式上传、cloudflared 启动安全加固（不再接受外部 spawn 选项）。",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -41,7 +41,8 @@
   "devDependencies": {
     "@deepseek-ai/dsh-llm": "0.1.0-rc.8",
     "@eslint/js": "^10.0.1",
-    "@larksuiteoapi/node-sdk": "^1.73.0",
+    "@larksuite/channel": "^0.7.1",
+    "@larksuiteoapi/node-sdk": "^1.75.0",
     "esbuild": "^0.28.2",
     "eslint": "^10.9.1",
     "globals": "^17.11.0",

@@ -427,6 +427,13 @@ test('平台构造期透传会话级配置，setConfig 写入并持久化，getS
     },
     onPersist: (patch) => { persisted.push(patch) },
   })
+  // 测试隔离：通道工厂替换为哑实现，避免向飞书发起真实长连接
+  svc.gateway._createChannel = () => ({
+    on: () => () => {},
+    connect: async () => {},
+    disconnect: async () => {},
+    getBotIdentity: () => ({ openId: 'ou_test', name: 'dsh-bridge' }),
+  })
 
   // 构造期（cordis 配置）就要落到会话桥 config 上，否则等于没配
   assert.equal(svc.node.config.agentPreset, 'collab')

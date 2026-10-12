@@ -315,9 +315,9 @@ Official QQ Bot with direct/group @chat, Markdown rendering, interactive button 
 
 ---
 
-#### 🐦 Feishu (Lark) Bot (WebSocket 2.0)
+#### 🐦 Feishu (Lark) Bot (recommended · official Channel SDK)
 
-Enterprise self-built app via official full-duplex WebSocket long connection—**100% No Public IP / No Webhook required**.
+Built on the **official Feishu Channel SDK**: WebSocket transport with auto-reconnect, event verification/normalization, message rendering and chunking, streaming typewriter cards, and media upload/download are all handled by Feishu's own implementation (this plugin no longer maintains its own protocol stack). Onboarding is one scan away — click **"📱 Scan to create app"** in the settings panel and permissions, event subscriptions and card callbacks are provisioned automatically, no developer-console setup required (manual App ID / Secret entry is still supported). Long-connection mode needs **no public IP, no domain, no webhook**. See also: **cloud-doc comments**, the **native slash-command panel**, and approvals whose cards **update in place** after you decide.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/wenbin-wb/dsh-bridge/main/docs/screenshots/feishu-bot-config.webp" width="600" alt="Feishu Bot Config" />
@@ -331,7 +331,13 @@ Enterprise self-built app via official full-duplex WebSocket long connection—*
   </p>
 </details>
 
-* **Quick Setup**: Create self-built app on [Feishu Open Platform](https://open.feishu.cn/app), enable long connection > Fill App ID & Secret. See [Feishu Guide](docs/feishu-usage.md).
+* **Cloud-doc comments**: mention the bot in a Feishu doc/sheet comment and the answer is posted back into that comment thread (no need to mention again when following up; comments are plain text — no streaming or cards).
+* **Native slash-command panel**: on connect the plugin registers 10 commands (`/help`, `/new`, `/sessions`, `/use`, `/status`, …) so users can pick them from Feishu's `/` panel (requires Feishu PC ≥ 7.70 / mobile ≥ 7.71; typing them manually works on older clients too).
+* **🚀 Scan to create app (recommended)**: click **"📱 Scan to create app"** in the settings panel > confirm with the Feishu mobile app; permissions, event subscriptions and card callbacks are provisioned automatically and the bot connects right away — no developer console needed. Tenant brand (Feishu / Lark) is detected automatically.
+* **⌨️ Native slash-command panel**: 10 commands (`/help`, `/new`, `/sessions`, `/use`, `/status`, …) are registered automatically so users can pick them from Feishu's `/` panel (Feishu PC ≥ 7.70 / mobile ≥ 7.71; typing them manually works on older clients).
+* **📄 Cloud-doc comments**: mention the bot in a Feishu doc/sheet comment and the answer is posted back into that comment thread (no need to mention again when following up; comments are plain text).
+* **🛡 In-place approval cards**: after you approve/reject, the card turns into a result state (showing who decided and who requested; timeout/cancel are marked too) instead of sending a duplicate text message.
+* **Manual setup (existing app)**: create a self-built app on [Feishu Open Platform](https://open.feishu.cn/app), enable long connection > fill App ID & Secret. See [Feishu Guide](docs/feishu-usage.md).
 
 ---
 
