@@ -43,6 +43,9 @@ jobs:
             paths-ignore:
               - client/client.js
               - lib/feishu/lark-bundled.mjs
+              # docs/dev/ 是官方文档与 SDK 示例的本地留档（第三方原文，非本仓库维护代码），
+              # 扫描它会产出与我们无关的告警（如官方示例里的未使用变量）
+              - docs/dev/**
 
       - name: 执行 CodeQL 分析
         uses: github/codeql-action/analyze@v4

@@ -343,7 +343,9 @@ test('PlatformManager 重复注册同 id 会替换并 dispose 旧实例', () => 
 test('extractAndStripSendFileDirectives 准确提取指令并从聊天正文中剥离', async () => {
   const fs = await import('node:fs')
   const path = await import('node:path')
-  const tmpFile = path.resolve(process.cwd(), 'scratch', 'test-intro-unit.txt')
+  const tmpDir = path.resolve(process.cwd(), 'scratch')
+  fs.mkdirSync(tmpDir, { recursive: true }) // CI 检出里没有 scratch/（本地为未入库的开发目录）
+  const tmpFile = path.join(tmpDir, 'test-intro-unit.txt')
   fs.writeFileSync(tmpFile, '自我介绍内容测试')
   try {
     const raw = `我已经为你生成了自我介绍文件，请查收：\n[SEND_FILE: ${tmpFile}]\n祝你使用愉快！`
@@ -360,7 +362,9 @@ test('extractAndStripSendFileDirectives 准确提取指令并从聊天正文中�
 test('ConversationBridge 仅在收到 [SEND_FILE: path] 指令时发送媒体文件且聊天正文过滤指令', async () => {
   const fs = await import('node:fs')
   const path = await import('node:path')
-  const tmpFile = path.resolve(process.cwd(), 'scratch', 'test-auto-send.txt')
+  const tmpDir = path.resolve(process.cwd(), 'scratch')
+  fs.mkdirSync(tmpDir, { recursive: true }) // 同上：CI 检出无 scratch/
+  const tmpFile = path.join(tmpDir, 'test-auto-send.txt')
   fs.writeFileSync(tmpFile, '自动发送测试内容')
 
   const { ctx } = makeMockCtx()
@@ -400,8 +404,10 @@ test('ConversationBridge 仅在收到 [SEND_FILE: path] 指令时发送媒体文
 test('ConversationBridge 在普通代码修改时绝不发送文件且不误判', async () => {
   const fs = await import('node:fs')
   const path = await import('node:path')
-  const tmpJs = path.resolve(process.cwd(), 'scratch', 'test-code.js')
-  const tmpVue = path.resolve(process.cwd(), 'scratch', 'test-code.vue')
+  const tmpDir = path.resolve(process.cwd(), 'scratch')
+  fs.mkdirSync(tmpDir, { recursive: true }) // 同上：CI 检出无 scratch/
+  const tmpJs = path.join(tmpDir, 'test-code.js')
+  const tmpVue = path.join(tmpDir, 'test-code.vue')
   fs.writeFileSync(tmpJs, 'console.log("hello")')
   fs.writeFileSync(tmpVue, '<template><div></div></template>')
 
