@@ -788,7 +788,14 @@ test('[飞书] 审批超时 / 任务中止：卡片原地更新为对应结果�
     await ctx.emit('feishu/message', { chatId: 'oc_chat', peerId: 'oc_chat', senderId: 'ou_user', isGroup: false, text: 'x', messageId: 'om_1', rawContentType: 'text', resources: [] })
     await new Promise((r) => setTimeout(r, 10))
     const decide = ctx.emit('approval/request', { agent: { session: { id: 'sess_1' } }, toolName: 'bash' })
-    assert.equal(await decide, 'rejected')
+    // 桥内审批超时定时器是 unref 的：Node 22 下事件循环可能先退出（用例挂起并级联取消后续用例），
+    // 这里用 ref 定时器把事件循环托住，等超时真正触发。
+    const keepAlive = setTimeout(() => {}, 5000)
+    try {
+      assert.equal(await decide, 'rejected')
+    } finally {
+      clearTimeout(keepAlive)
+    }
     await new Promise((r) => setTimeout(r, 20))
     assert.equal(updates.length, 1)
     assert.equal(updates[0].card.header.template, 'grey')
