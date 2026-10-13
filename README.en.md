@@ -20,6 +20,7 @@
   <img src="https://img.shields.io/badge/Feishu-Channel%20SDK-00D6B9?style=flat-square&logo=lark" alt="Feishu" />
   <img src="https://img.shields.io/badge/Telegram-Bot%20API-24A1DE?style=flat-square&logo=telegram" alt="Telegram" />
   <img src="https://img.shields.io/badge/Cloudflare-Tunnel-F38020?style=flat-square&logo=cloudflare" alt="Cloudflare" />
+  <a href="https://dpharness.com/plugin/wenbin-wb/dsh-bridge" target="_blank" rel="noopener noreferrer"><img src="https://dpharness.com/badge/install/wenbin-wb/dsh-bridge.svg" alt="DSH Hub 实装验证" /></a>
 </p>
 
 <p align="center">
