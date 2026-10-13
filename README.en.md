@@ -321,7 +321,7 @@ Official QQ Bot with direct/group @chat, Markdown rendering, interactive button 
 Built on the **official Feishu Channel SDK**: WebSocket transport with auto-reconnect, event verification/normalization, message rendering and chunking, streaming typewriter cards, and media upload/download are all handled by Feishu's own implementation (this plugin no longer maintains its own protocol stack). Onboarding is one scan away — click **"📱 Scan to create app"** in the settings panel and permissions, event subscriptions and card callbacks are provisioned automatically, no developer-console setup required (manual App ID / Secret entry is still supported). Long-connection mode needs **no public IP, no domain, no webhook**. See also: **cloud-doc comments**, the **native slash-command panel**, and approvals whose cards **update in place** after you decide.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/wenbin-wb/dsh-bridge/main/docs/screenshots/feishu-bot-config.webp" width="600" alt="Feishu Bot Config" />
+  <img src="https://raw.githubusercontent.com/wenbin-wb/dsh-bridge/main/docs/screenshots/feishu-bot-config.webp" width="600" alt="Feishu: scan to create the app in one step" />
 </p>
 
 <details>

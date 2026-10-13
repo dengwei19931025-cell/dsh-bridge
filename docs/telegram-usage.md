@@ -49,7 +49,7 @@
    - 亦可直接在系统环境变量中设置 `HTTPS_PROXY=http://127.0.0.1:7890`；
 5. 点击「**保存并连接**」。
 
-![Telegram Bot 配置](screenshots/telegram-bot-config.jpg)
+![Telegram Bot 配置](screenshots/telegram-bot-config.webp)
 
 ---
 

@@ -344,7 +344,7 @@ dsh plugin --profile desktop add @wenbin_wb/dsh-bridge
 接入门槛也降下来了——**不用进开发者后台逐项配置**：设置面板里**手机扫码即可一键创建应用**，权限、事件订阅与卡片回调自动预置；仍保留手动填写已有应用凭证的方式。长连接模式 **100% 免公网 IP / 免域名 / 免配置 Webhook**。
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/wenbin-wb/dsh-bridge/main/docs/screenshots/feishu-bot-config.webp" width="600" alt="飞书 Bot 配置" />
+  <img src="https://raw.githubusercontent.com/wenbin-wb/dsh-bridge/main/docs/screenshots/feishu-bot-config.webp" width="600" alt="飞书扫码一键创建应用" />
 </p>
 
 <details>
