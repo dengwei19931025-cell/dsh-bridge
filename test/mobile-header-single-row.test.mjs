@@ -108,18 +108,59 @@ test('布局：五列网格 + titleRow 让位 + 三个子元素**全部**显式�
     '工具组（⌄ 输入框折叠按钮所在处）必须保留——用户明确要求只隐藏 ⋯');
 });
 
-test('角标（右侧边栏）：排到标签组之后，并与标签组同款渲染', () => {
-  const cornerRule = rendered.match(/div\[class\*="[A-Za-z0-9_-]+_headerCorner"\]\s*\{([^}]*)\}/);
-  assert.ok(cornerRule, '必须有角标规则');
-  const d = cornerRule[1];
-  assert.match(d, /grid-column:\s*5\s*!important/, '角标必须落在最后一列（标签组之后）');
-  // 与标签组同款：灰底条 / 7px 圆角 / 总高 26px（内容盒 22 + 2×2 内衬）/ 2px 间距
-  assert.match(d, /background:\s*rgba\(0,\s*0,\s*0,\s*0\.08\)\s*!important/, '角标底色必须与标签组一致');
-  assert.match(d, /border-radius:\s*7px\s*!important/, '角标圆角必须与标签组一致');
-  assert.match(d, /height:\s*22px\s*!important/, '角标高度要写内容盒 22px（+2×2 内衬 = 26px）');
-  assert.match(d, /padding:\s*2px\s*!important/, '角标内衬必须与标签组一致');
-  assert.match(d, /margin:\s*0 0 0 2px\s*!important/, '与标签组的间距必须与标签之间的间距一致（2px）');
-  // 真正"渲染成一样"由浏览器套件比对计算样式（底色/圆角/高度三项相等）；这里只守配方。
+test('三段合成一条连续胶囊：同底色同高、首尾相接，只在最外侧留圆角', () => {
+  const rule = (local) => rendered.match(new RegExp(`div\\[class\\*="[A-Za-z0-9_-]+_${local}"\\]\\s*\\{([^}]*)\\}`));
+  const utils = rule('headerUtilities');
+  const tabs = rule('tabs');
+  const corner = rule('headerCorner');
+  assert.ok(utils && tabs && corner, '三段都必须有规则');
+  const bar = /background:\s*rgba\(0,\s*0,\s*0,\s*0\.08\)\s*!important/;
+  const h22 = /height:\s*22px\s*!important/;
+  for (const [name, r] of [['工具组', utils], ['角标', corner]]) {
+    assert.match(r[1], bar, `${name}必须与标签组同底色（一条胶囊的表面色一致）`);
+    assert.match(r[1], h22, `${name}总高必须 26px（内容盒 22 + 2×2 内衬）`);
+    assert.match(r[1], /padding:\s*2px\s*!important/, `${name}内衬必须与标签组一致`);
+    assert.match(r[1], /margin:\s*0\s*!important/, `${name}必须零外边距才能首尾相接无空隙`);
+  }
+  // 只在外侧两端留圆角，相接处为直角 —— 这是"看起来是一条"的关键
+  assert.match(utils[1], /border-radius:\s*7px 0 0 7px\s*!important/, '左端：左侧圆角、右侧直角');
+  assert.match(corner[1], /border-radius:\s*0 7px 7px 0\s*!important/, '右端：左侧直角、右侧圆角');
+  assert.match(tabs[1], /border-radius:\s*0\s*!important/, '中段标签组必须去圆角（成为胶囊中段）');
+  assert.match(tabs[1], /opacity:\s*1\s*!important/, '标签行常显（触屏没有 hover）');
+  // ⌄ 并入胶囊后要与标签同规格，不再是白色圆钮
+  const fold = source.match(/div\[class\*="__F_CONV__headerUtilities"\]\s+\.dsh-header-fold-btn\s*\{([^}]*)\}/);
+  assert.ok(fold, '必须有一条"胶囊内 ⌄"规则，且选择器要带父级（见下）');
+  assert.match(fold[1], /background:\s*transparent\s*!important/, '⌄ 在胶囊里应透明，不再是白底圆钮');
+  assert.match(fold[1], /border:\s*none\s*!important/, '⌄ 不应再带边框');
+  assert.match(fold[1], /height:\s*22px\s*!important/, '⌄ 高度必须与标签一致（22px 内容盒）');
+  // 回归守卫：文件后面还有一条同名的 `.dsh-header-fold-btn`（独立圆形钮）规则，
+  // 同权重时后者按顺序胜出 —— 实测只写 `.dsh-header-fold-btn` 会被它盖回去。
+  assert.match(source, /div\[class\*="__F_CONV__headerUtilities"\]\s+\.dsh-header-fold-btn/,
+    '这条覆盖必须带父级选择器提升权重，否则会被后面同名规则盖掉（实测仍显示白底方块）');
+});
+
+test('手机端隐藏头部「模式胶囊」（并说明为什么必须显式隐藏）', () => {
+  const idx = cssNoComment.indexOf('span[class*="__F_MODE__label"]');
+  assert.ok(idx > 0, '源码里找不到隐藏模式胶囊的规则');
+  const blocks = enclosingBlocks(cssNoComment, idx);
+  assert.equal(blocks.length, 1, `应当只被一层块包住，实际：${JSON.stringify(blocks)}`);
+  assert.match(blocks[0], /^@media\s*\(max-width:\s*767px\)$/, '隐藏模式胶囊必须限定手机端');
+  assert.match(rendered, /span\[class\*="[A-Za-z0-9_-]+_label"\]\s*\{\s*display:\s*none\s*!important/,
+    '模式胶囊必须在手机端 display:none');
+  // 槽位与锚点：它只有 title 没有 aria-label
+  assert.ok(FAMILY_SLOTS.MODE?.locals?.includes('label'), '必须有 MODE 槽位（本地名 label）');
+  assert.equal(FAMILY_SLOTS.MODE.optional, true, 'MODE 属可选槽位（缺席不得拖累 compat）');
+  const fakeDoc = (title, classes) => ({
+    querySelectorAll: () => [{ getAttribute: () => title, classList: classes }],
+  });
+  const find = FAMILY_SLOTS.MODE.anchors[0].find;
+  assert.ok(find(fakeDoc('用对话定制 DSH：让 Agent 编写插件', ['SVAs4q_label'])), 'MODE 锚点必须认得出 title 文案');
+  assert.equal(find(fakeDoc('打开右侧边栏', ['wSkVaW_corner'])), null, 'MODE 锚点不得误命中');
+  // 回归守卫：注释里必须写明"display:contents 让容器查询失效"这一根因，防止有人把这条删掉
+  assert.match(read('client/host-families.js'), /不能当查询容器/,
+    'host-families.js 的 MODE 槽位必须保留根因说明：display:contents 的元素不能当查询容器');
+  assert.match(source, /不再是查询容器/,
+    'mobile-styles.js 也必须写明根因（否则后人会以为这条隐藏是多余的）');
 });
 
 test('手机端隐藏「更多操作」(⋯)，但保留 ⌄', () => {

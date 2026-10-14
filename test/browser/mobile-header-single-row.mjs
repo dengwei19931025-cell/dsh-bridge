@@ -127,15 +127,35 @@ const measure = () => page.evaluate(() => {
   const cluster = rect(document.querySelector('div[class*="_titleCluster"]'));
   const foldBox = rect(fold);
   const moreInfo = hiddenInfo(more);
-  // "渲染成一样的"：拿角标与标签组的计算样式逐项对比（底色 / 圆角 / 总高）
-  const lookOf = (el) => {
+
+  // 模式胶囊（创造模式/标准模式）：它只有 title 没有 aria-label，故先按 title 认，再按 *_label 兜底
+  const modeLabel = (() => {
+    const scope = header;
+    const byTitle = [...scope.querySelectorAll('[title]')]
+      .find((el) => /用对话定制|Customize DSH/i.test(el.getAttribute('title') || ''));
+    if (byTitle) return byTitle;
+    return [...scope.querySelectorAll('span')].find((el) => typeof el.className === 'string'
+      && /(^|\s)[A-Za-z0-9_-]+_label(\s|$)/.test(el.className)
+      && (el.textContent || '').trim().length <= 8) || null;
+  })();
+  const modeInfo = hiddenInfo(modeLabel);
+
+  // "合成一条连续胶囊"：三段同底色同高、首尾相接无空隙、只有最外侧留圆角
+  const seg = (el) => {
     if (!el) return null;
     const s = getComputedStyle(el);
     const b = el.getBoundingClientRect();
-    return { bg: s.backgroundColor, radius: s.borderRadius, height: Math.round(b.height) };
+    return {
+      l: Math.round(b.left), r: Math.round(b.right), h: Math.round(b.height),
+      bg: s.backgroundColor, radius: s.borderRadius,
+    };
   };
-  const tabsLook = lookOf(tabs);
-  const cornerLook = lookOf(corner);
+  const segs = { utilities: seg(document.querySelector('div[class*="_headerUtilities"]')), tabs: seg(tabs), corner: seg(corner) };
+  const sameBar = !!(segs.utilities && segs.tabs && segs.corner)
+    && segs.utilities.bg === segs.tabs.bg && segs.corner.bg === segs.tabs.bg
+    && segs.utilities.h === segs.tabs.h && segs.corner.h === segs.tabs.h;
+  const contiguous = !!(segs.utilities && segs.tabs && segs.corner)
+    && Math.abs(segs.utilities.r - segs.tabs.l) <= 1 && Math.abs(segs.tabs.r - segs.corner.l) <= 1;
   return {
     found: true,
     viewport: `${window.innerWidth}x${window.innerHeight}`,
@@ -163,12 +183,10 @@ const measure = () => page.evaluate(() => {
     jobs: hiddenInfo(jobs),
     fileOpen: hiddenInfo(fileOpen),
     leftoverDividers,
-    tabsLook,
-    cornerLook,
-    lookMatches: !!(tabsLook && cornerLook)
-      && tabsLook.bg === cornerLook.bg
-      && tabsLook.radius === cornerLook.radius
-      && tabsLook.height === cornerLook.height,
+    mode: modeInfo,
+    segs,
+    sameBar,
+    contiguous,
   };
 });
 
@@ -200,8 +218,21 @@ if (!geo.found) {
   say('右侧边栏开关已排到「编队」之后', geo.cornerAfterTabs === true,
     `tabs.r=${geo.tabs.r} corner.l=${geo.corner?.l} gap=${geo.cornerToTabsGap}px`);
   say('角标与标签组没有重叠', geo.overlapCornerTabs === 0, `overlap=${geo.overlapCornerTabs}px`);
-  say('角标与标签组渲染成一样的（底色/圆角/总高逐项相等）', geo.lookMatches,
-    `tabs=${JSON.stringify(geo.tabsLook)} corner=${JSON.stringify(geo.cornerLook)}`);
+  // 三段 [⌄][标签组][▯] 必须真的连成一条（同底色同高 + 首尾相接 + 只有外侧圆角）
+  say('三段 [⌄|标签组|▯] 同底色同高（同一条胶囊）', geo.sameBar,
+    `utils=${JSON.stringify(geo.segs?.utilities)} tabs=${JSON.stringify(geo.segs?.tabs)} corner=${JSON.stringify(geo.segs?.corner)}`);
+  say('三段首尾相接、无空隙', geo.contiguous,
+    `utils.r=${geo.segs?.utilities?.r} tabs.l=${geo.segs?.tabs?.l} tabs.r=${geo.segs?.tabs?.r} corner.l=${geo.segs?.corner?.l}`);
+  say('只有最外侧留圆角、中段为直角',
+    /^7px 0px 0px 7px$/.test(geo.segs?.utilities?.radius || '') && /^0px$/.test(geo.segs?.tabs?.radius || '')
+      && /^0px 7px 7px 0px$/.test(geo.segs?.corner?.radius || ''),
+    `utils=${geo.segs?.utilities?.radius} tabs=${geo.segs?.tabs?.radius} corner=${geo.segs?.corner?.radius}`);
+  if (geo.mode) {
+    say('手机端已隐藏头部「模式胶囊」（创造模式/标准模式）', geo.mode.display === 'none' && !geo.mode.visible,
+      `display=${geo.mode.display} visible=${geo.mode.visible}`);
+  } else {
+    skip('手机端隐藏头部「模式胶囊」', '当前会话没有渲染该胶囊');
+  }
   say('titleRow 已让位（display:contents），三个子元素都排在第 1 行',
     geo.titleRowDisplay === 'contents'
       && [geo.cluster, geo.fold, geo.tabs, geo.corner].every((b) => b && Math.abs(b.t - geo.tabs.t) <= 10),
@@ -273,6 +304,12 @@ if (!desktop.found) {
     say('电脑端「更多操作」(⋯) 未被隐藏', desktop.more.display !== 'none', `display=${desktop.more.display}`);
   } else {
     skip('电脑端「更多操作」(⋯) 未被隐藏', '桌面宽度下该按钮未渲染');
+  }
+  if (desktop.mode) {
+    say('电脑端「模式胶囊」未被隐藏（宿主自己的容器查询在桌面宽度下是"显示"）',
+      desktop.mode.display !== 'none', `display=${desktop.mode.display}`);
+  } else {
+    skip('电脑端「模式胶囊」未被隐藏', '桌面宽度下该胶囊未渲染');
   }
 }
 await page.screenshot({ path: path.join(SHOTS, 'desktop-1280.png') });

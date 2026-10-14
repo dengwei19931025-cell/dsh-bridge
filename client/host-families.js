@@ -139,6 +139,13 @@ const aria = (re) => (doc) => {
   return null;
 };
 
+/** 按 title 属性找元素（有些组件只挂 tooltip，没有 aria-label，如头部模式胶囊）。 */
+const titled = (re) => (doc) => {
+  const nodes = doc.querySelectorAll?.('[title]') ?? [];
+  for (const el of nodes) if (re.test(el.getAttribute('title') || '')) return el;
+  return null;
+};
+
 /** 设置弹窗面板：`[role="dialog"]` 且直接子级含 `<nav>`（0.1.x / 0.2.0 同构）。 */
 const settingsPanel = (doc) => {
   const panels = doc.querySelectorAll?.('div[role="dialog"]') ?? [];
@@ -254,6 +261,21 @@ export const FAMILY_SLOTS = {
     locals: ['toggleCluster'],
     known: ['W-zNGW'],
     anchors: [{ local: 'toggleCluster', find: (doc) => doc.querySelector?.('div[class*="toggleCluster"]') || null }],
+  },
+  // 头部「模式/预设」胶囊（@deepseek-ai/dsh-client-ui-agent-preset 的 AgentPresetLabel 模块，
+  // 本地名只有 label / icon，形如 `<span class="SVAs4q_label" title="用对话定制 DSH…">创造模式</span>`）：
+  // 手机端整体隐藏。
+  // ⚠️ 为什么必须由我们显式隐藏：该胶囊自带 `@container (width<=540px){display:none}`
+  // 的窄容器自隐藏，而手机端头部单行化把 titleRow 改成了 display:contents ——
+  // 不再生成盒子的元素**不能当查询容器**，于是这条自隐藏失效、胶囊冒了出来（实测：
+  // 我们的样式生效时 display:flex，临时禁用我们的样式后 display:none）。
+  // 它只有 title、没有 aria-label，故锚点走 titled()；即便锚点失配（英文环境），
+  // familyHits 仍能凭页面上的 SVAs4q_* 类名解析出基线。
+  MODE: {
+    optional: true,
+    locals: ['label', 'icon'],
+    known: ['SVAs4q'],
+    anchors: [{ local: 'label', find: titled(/用对话定制|Customize DSH/i) }],
   },
   // 后台任务触发器（@deepseek-ai/dsh-client-ui-jobs）：手机端整体隐藏，见 mobile-styles.js。
   // aria-label 取自该包的 i18n：zh「{count} 个后台任务运行中」/ en「{count} background job(s) running」。

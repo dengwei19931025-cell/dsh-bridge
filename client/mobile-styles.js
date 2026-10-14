@@ -529,25 +529,15 @@ export const MOBILE_STYLES_CSS = `
         grid-row: 1 !important;
         min-width: 0 !important;
       }
-      div[class*="__F_CONV__headerUtilities"] {
-        grid-column: 3 !important;
-        grid-row: 1 !important;
-        margin-left: 0 !important;
-      }
-      div[class*="__F_CONV__tabs"] {
-        grid-column: 4 !important;
-        grid-row: 1 !important;
-        margin: 0 !important;
-        opacity: 1 !important;
-      }
-      /* 角标 = 右侧边栏开关，渲染成与标签组同款（灰底条 / 7px 圆角 / 26px 总高 / 2px 间距） */
+      /* 角标 = 右侧边栏开关，与工具组 / 标签组一起构成**一条连续胶囊**：
+         三段同底色同高、首尾相接无空隙，只在最外侧两端保留圆角（见下）。 */
       div[class*="__F_CONV__headerCorner"] {
         grid-column: 5 !important;
         grid-row: 1 !important;
-        margin: 0 0 0 2px !important;
+        margin: 0 !important;
         height: 22px !important;
         padding: 2px !important;
-        border-radius: 7px !important;
+        border-radius: 0 7px 7px 0 !important;
         background: rgba(0, 0, 0, 0.08) !important;
         display: flex !important;
         align-items: center !important;
@@ -556,6 +546,54 @@ export const MOBILE_STYLES_CSS = `
         width: 22px !important;
         height: 22px !important;
         border-radius: 5px !important;
+      }
+
+      /* ── 把 [工具组 ⌄] [标签组] [角标 ▯] 合成一条连续胶囊 ──────────────────────────
+         用户要求"这些都组合成"一条。做法：三段同底色（rgba(0,0,0,.08)）同高（26px 总高）、
+         首尾相接（margin 归零、段间无间隙），只在最外侧两端保留 7px 圆角、
+         相接处为直角 —— 视觉上就是一条胶囊。 */
+      div[class*="__F_CONV__headerUtilities"] {
+        grid-column: 3 !important;
+        grid-row: 1 !important;
+        margin: 0 !important;
+        height: 22px !important;
+        padding: 2px !important;
+        border-radius: 7px 0 0 7px !important;
+        background: rgba(0, 0, 0, 0.08) !important;
+        display: flex !important;
+        align-items: center !important;
+      }
+      /* 中间的标签组：去掉自身圆角，成为胶囊中段 */
+      div[class*="__F_CONV__tabs"] {
+        grid-column: 4 !important;
+        grid-row: 1 !important;
+        margin: 0 !important;
+        opacity: 1 !important;
+        border-radius: 0 !important;
+      }
+      /* 折叠按钮（⌄）并入胶囊后要变成与标签同规格的图标位，不再是白色圆钮。
+         ⚠️ 选择器必须带上父级（工具组）提升权重：文件后面还有一条同名的
+         .dsh-header-fold-btn 规则（它定义"独立圆形钮"那套外观），
+         同权重时后者按顺序胜出 —— 实测只写 .dsh-header-fold-btn 会被它盖回去，
+         ⌄ 在胶囊里仍是白底方块。 */
+      div[class*="__F_CONV__headerUtilities"] .dsh-header-fold-btn {
+        width: 28px !important;
+        min-width: 28px !important;
+        height: 22px !important;
+        padding: 0 !important;
+        border: none !important;
+        border-radius: 5px !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        color: var(--dsw-alias-label-secondary, #6b7280) !important;
+      }
+
+      /* 手机端隐藏头部「模式胶囊」（创造模式 / 标准模式）：
+         宿主本来靠 @container 在窄容器下自隐藏，但手机端单行化把 titleRow 改成
+         display:contents 后它不再是查询容器，该自隐藏失效（实测：不加这条时胶囊
+         会以 display:flex 冒出来）。详见 host-families.js 的 MODE 槽位说明。 */
+      span[class*="__F_MODE__label"] {
+        display: none !important;
       }
 
       /* 手机端隐藏「更多操作」(⋯)：它下面挂的都是桌面向操作；工具组里只留本插件的
@@ -616,7 +654,10 @@ export const MOBILE_STYLES_CSS = `
       }
 
       /* 折叠输入框按钮：注入在聊天头部工具栏（Session 下载钮旁），
-         与 DSH sessionLogButton 同规格（28px 圆形图标钮），视觉与原生一致 */
+         与 DSH sessionLogButton 同规格（28px 圆形图标钮），视觉与原生一致。
+         注：手机端头部单行化后，它被并入"一条胶囊"，由上面权重更高的
+         div[class*="__F_CONV__headerUtilities"] .dsh-header-fold-btn 覆盖成胶囊内图标位。
+         本规则保留为"独立圆形钮"的基准外观（其它布局/未来复用）。 */
       .dsh-header-fold-btn {
         min-width: 28px !important;
         width: 28px !important;

@@ -554,25 +554,15 @@ var MOBILE_STYLES_CSS = `
         grid-row: 1 !important;
         min-width: 0 !important;
       }
-      div[class*="__F_CONV__headerUtilities"] {
-        grid-column: 3 !important;
-        grid-row: 1 !important;
-        margin-left: 0 !important;
-      }
-      div[class*="__F_CONV__tabs"] {
-        grid-column: 4 !important;
-        grid-row: 1 !important;
-        margin: 0 !important;
-        opacity: 1 !important;
-      }
-      /* \u89D2\u6807 = \u53F3\u4FA7\u8FB9\u680F\u5F00\u5173\uFF0C\u6E32\u67D3\u6210\u4E0E\u6807\u7B7E\u7EC4\u540C\u6B3E\uFF08\u7070\u5E95\u6761 / 7px \u5706\u89D2 / 26px \u603B\u9AD8 / 2px \u95F4\u8DDD\uFF09 */
+      /* \u89D2\u6807 = \u53F3\u4FA7\u8FB9\u680F\u5F00\u5173\uFF0C\u4E0E\u5DE5\u5177\u7EC4 / \u6807\u7B7E\u7EC4\u4E00\u8D77\u6784\u6210**\u4E00\u6761\u8FDE\u7EED\u80F6\u56CA**\uFF1A
+         \u4E09\u6BB5\u540C\u5E95\u8272\u540C\u9AD8\u3001\u9996\u5C3E\u76F8\u63A5\u65E0\u7A7A\u9699\uFF0C\u53EA\u5728\u6700\u5916\u4FA7\u4E24\u7AEF\u4FDD\u7559\u5706\u89D2\uFF08\u89C1\u4E0B\uFF09\u3002 */
       div[class*="__F_CONV__headerCorner"] {
         grid-column: 5 !important;
         grid-row: 1 !important;
-        margin: 0 0 0 2px !important;
+        margin: 0 !important;
         height: 22px !important;
         padding: 2px !important;
-        border-radius: 7px !important;
+        border-radius: 0 7px 7px 0 !important;
         background: rgba(0, 0, 0, 0.08) !important;
         display: flex !important;
         align-items: center !important;
@@ -581,6 +571,54 @@ var MOBILE_STYLES_CSS = `
         width: 22px !important;
         height: 22px !important;
         border-radius: 5px !important;
+      }
+
+      /* \u2500\u2500 \u628A [\u5DE5\u5177\u7EC4 \u2304] [\u6807\u7B7E\u7EC4] [\u89D2\u6807 \u25AF] \u5408\u6210\u4E00\u6761\u8FDE\u7EED\u80F6\u56CA \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+         \u7528\u6237\u8981\u6C42"\u8FD9\u4E9B\u90FD\u7EC4\u5408\u6210"\u4E00\u6761\u3002\u505A\u6CD5\uFF1A\u4E09\u6BB5\u540C\u5E95\u8272\uFF08rgba(0,0,0,.08)\uFF09\u540C\u9AD8\uFF0826px \u603B\u9AD8\uFF09\u3001
+         \u9996\u5C3E\u76F8\u63A5\uFF08margin \u5F52\u96F6\u3001\u6BB5\u95F4\u65E0\u95F4\u9699\uFF09\uFF0C\u53EA\u5728\u6700\u5916\u4FA7\u4E24\u7AEF\u4FDD\u7559 7px \u5706\u89D2\u3001
+         \u76F8\u63A5\u5904\u4E3A\u76F4\u89D2 \u2014\u2014 \u89C6\u89C9\u4E0A\u5C31\u662F\u4E00\u6761\u80F6\u56CA\u3002 */
+      div[class*="__F_CONV__headerUtilities"] {
+        grid-column: 3 !important;
+        grid-row: 1 !important;
+        margin: 0 !important;
+        height: 22px !important;
+        padding: 2px !important;
+        border-radius: 7px 0 0 7px !important;
+        background: rgba(0, 0, 0, 0.08) !important;
+        display: flex !important;
+        align-items: center !important;
+      }
+      /* \u4E2D\u95F4\u7684\u6807\u7B7E\u7EC4\uFF1A\u53BB\u6389\u81EA\u8EAB\u5706\u89D2\uFF0C\u6210\u4E3A\u80F6\u56CA\u4E2D\u6BB5 */
+      div[class*="__F_CONV__tabs"] {
+        grid-column: 4 !important;
+        grid-row: 1 !important;
+        margin: 0 !important;
+        opacity: 1 !important;
+        border-radius: 0 !important;
+      }
+      /* \u6298\u53E0\u6309\u94AE\uFF08\u2304\uFF09\u5E76\u5165\u80F6\u56CA\u540E\u8981\u53D8\u6210\u4E0E\u6807\u7B7E\u540C\u89C4\u683C\u7684\u56FE\u6807\u4F4D\uFF0C\u4E0D\u518D\u662F\u767D\u8272\u5706\u94AE\u3002
+         \u26A0\uFE0F \u9009\u62E9\u5668\u5FC5\u987B\u5E26\u4E0A\u7236\u7EA7\uFF08\u5DE5\u5177\u7EC4\uFF09\u63D0\u5347\u6743\u91CD\uFF1A\u6587\u4EF6\u540E\u9762\u8FD8\u6709\u4E00\u6761\u540C\u540D\u7684
+         .dsh-header-fold-btn \u89C4\u5219\uFF08\u5B83\u5B9A\u4E49"\u72EC\u7ACB\u5706\u5F62\u94AE"\u90A3\u5957\u5916\u89C2\uFF09\uFF0C
+         \u540C\u6743\u91CD\u65F6\u540E\u8005\u6309\u987A\u5E8F\u80DC\u51FA \u2014\u2014 \u5B9E\u6D4B\u53EA\u5199 .dsh-header-fold-btn \u4F1A\u88AB\u5B83\u76D6\u56DE\u53BB\uFF0C
+         \u2304 \u5728\u80F6\u56CA\u91CC\u4ECD\u662F\u767D\u5E95\u65B9\u5757\u3002 */
+      div[class*="__F_CONV__headerUtilities"] .dsh-header-fold-btn {
+        width: 28px !important;
+        min-width: 28px !important;
+        height: 22px !important;
+        padding: 0 !important;
+        border: none !important;
+        border-radius: 5px !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        color: var(--dsw-alias-label-secondary, #6b7280) !important;
+      }
+
+      /* \u624B\u673A\u7AEF\u9690\u85CF\u5934\u90E8\u300C\u6A21\u5F0F\u80F6\u56CA\u300D\uFF08\u521B\u9020\u6A21\u5F0F / \u6807\u51C6\u6A21\u5F0F\uFF09\uFF1A
+         \u5BBF\u4E3B\u672C\u6765\u9760 @container \u5728\u7A84\u5BB9\u5668\u4E0B\u81EA\u9690\u85CF\uFF0C\u4F46\u624B\u673A\u7AEF\u5355\u884C\u5316\u628A titleRow \u6539\u6210
+         display:contents \u540E\u5B83\u4E0D\u518D\u662F\u67E5\u8BE2\u5BB9\u5668\uFF0C\u8BE5\u81EA\u9690\u85CF\u5931\u6548\uFF08\u5B9E\u6D4B\uFF1A\u4E0D\u52A0\u8FD9\u6761\u65F6\u80F6\u56CA
+         \u4F1A\u4EE5 display:flex \u5192\u51FA\u6765\uFF09\u3002\u8BE6\u89C1 host-families.js \u7684 MODE \u69FD\u4F4D\u8BF4\u660E\u3002 */
+      span[class*="__F_MODE__label"] {
+        display: none !important;
       }
 
       /* \u624B\u673A\u7AEF\u9690\u85CF\u300C\u66F4\u591A\u64CD\u4F5C\u300D(\u22EF)\uFF1A\u5B83\u4E0B\u9762\u6302\u7684\u90FD\u662F\u684C\u9762\u5411\u64CD\u4F5C\uFF1B\u5DE5\u5177\u7EC4\u91CC\u53EA\u7559\u672C\u63D2\u4EF6\u7684
@@ -641,7 +679,10 @@ var MOBILE_STYLES_CSS = `
       }
 
       /* \u6298\u53E0\u8F93\u5165\u6846\u6309\u94AE\uFF1A\u6CE8\u5165\u5728\u804A\u5929\u5934\u90E8\u5DE5\u5177\u680F\uFF08Session \u4E0B\u8F7D\u94AE\u65C1\uFF09\uFF0C
-         \u4E0E DSH sessionLogButton \u540C\u89C4\u683C\uFF0828px \u5706\u5F62\u56FE\u6807\u94AE\uFF09\uFF0C\u89C6\u89C9\u4E0E\u539F\u751F\u4E00\u81F4 */
+         \u4E0E DSH sessionLogButton \u540C\u89C4\u683C\uFF0828px \u5706\u5F62\u56FE\u6807\u94AE\uFF09\uFF0C\u89C6\u89C9\u4E0E\u539F\u751F\u4E00\u81F4\u3002
+         \u6CE8\uFF1A\u624B\u673A\u7AEF\u5934\u90E8\u5355\u884C\u5316\u540E\uFF0C\u5B83\u88AB\u5E76\u5165"\u4E00\u6761\u80F6\u56CA"\uFF0C\u7531\u4E0A\u9762\u6743\u91CD\u66F4\u9AD8\u7684
+         div[class*="__F_CONV__headerUtilities"] .dsh-header-fold-btn \u8986\u76D6\u6210\u80F6\u56CA\u5185\u56FE\u6807\u4F4D\u3002
+         \u672C\u89C4\u5219\u4FDD\u7559\u4E3A"\u72EC\u7ACB\u5706\u5F62\u94AE"\u7684\u57FA\u51C6\u5916\u89C2\uFF08\u5176\u5B83\u5E03\u5C40/\u672A\u6765\u590D\u7528\uFF09\u3002 */
       .dsh-header-fold-btn {
         min-width: 28px !important;
         width: 28px !important;
@@ -1478,6 +1519,11 @@ var aria = (re) => (doc) => {
   for (const el of nodes) if (re.test(el.getAttribute("aria-label") || "")) return el;
   return null;
 };
+var titled = (re) => (doc) => {
+  const nodes = doc.querySelectorAll?.("[title]") ?? [];
+  for (const el of nodes) if (re.test(el.getAttribute("title") || "")) return el;
+  return null;
+};
 var settingsPanel = (doc) => {
   const panels = doc.querySelectorAll?.('div[role="dialog"]') ?? [];
   for (const p of panels) {
@@ -1580,6 +1626,21 @@ var FAMILY_SLOTS = {
     locals: ["toggleCluster"],
     known: ["W-zNGW"],
     anchors: [{ local: "toggleCluster", find: (doc) => doc.querySelector?.('div[class*="toggleCluster"]') || null }]
+  },
+  // 头部「模式/预设」胶囊（@deepseek-ai/dsh-client-ui-agent-preset 的 AgentPresetLabel 模块，
+  // 本地名只有 label / icon，形如 `<span class="SVAs4q_label" title="用对话定制 DSH…">创造模式</span>`）：
+  // 手机端整体隐藏。
+  // ⚠️ 为什么必须由我们显式隐藏：该胶囊自带 `@container (width<=540px){display:none}`
+  // 的窄容器自隐藏，而手机端头部单行化把 titleRow 改成了 display:contents ——
+  // 不再生成盒子的元素**不能当查询容器**，于是这条自隐藏失效、胶囊冒了出来（实测：
+  // 我们的样式生效时 display:flex，临时禁用我们的样式后 display:none）。
+  // 它只有 title、没有 aria-label，故锚点走 titled()；即便锚点失配（英文环境），
+  // familyHits 仍能凭页面上的 SVAs4q_* 类名解析出基线。
+  MODE: {
+    optional: true,
+    locals: ["label", "icon"],
+    known: ["SVAs4q"],
+    anchors: [{ local: "label", find: titled(/用对话定制|Customize DSH/i) }]
   },
   // 后台任务触发器（@deepseek-ai/dsh-client-ui-jobs）：手机端整体隐藏，见 mobile-styles.js。
   // aria-label 取自该包的 i18n：zh「{count} 个后台任务运行中」/ en「{count} background job(s) running」。
