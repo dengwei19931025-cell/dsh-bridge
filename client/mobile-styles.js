@@ -503,8 +503,9 @@ export const MOBILE_STYLES_CSS = `
          （面包屑标题已被本插件在移动端隐藏），第 2 行 .<F>_tabs。实测 433px：页面
          y 52..128 全是它（0..52 是本插件自绘的移动顶栏），合并后 37px，**省约 40px**。
 
-         目标排布（从左到右）：[标题簇] … [工具组 ⌄] [标签组 对话|轨迹|上下文|编队] [角标 ▯]
-                                  ↑ 1fr 吸收空隙            ↑ 角标要落在最后（用户指定"放在编队后面"）
+         目标排布（从左到右）：[空白 1fr] [标题簇] [工具组 ⌄] [标签组 对话|轨迹|上下文|编队] [角标 ▯] [空白 1fr]
+                                  ↑ 两侧各一个 1fr 空白轨道 → 胶囊**水平居中**
+                                   （实测：只留左侧 1fr 时胶囊中心比头部中心偏右 69px）
 
          ⚠️ 角标为什么必须"越过 titleRow"：.<F>_headerCorner 是 .<F>_titleRow 的**子元素**，
          子元素不可能排到 titleRow 之后的网格列里。故把 titleRow 改成 display:contents
@@ -517,7 +518,7 @@ export const MOBILE_STYLES_CSS = `
          ⚠️ 标签行自身只改网格列位置与 opacity，绝不动它的 border/padding：皮肤
          dsh-claude-style 按它的盒内坐标画高亮药丸，内部偏移会让药丸错位。 */
       header[class*="__F_CONV__header"]:has(div[class*="__F_CONV__tabs"]) {
-        grid-template-columns: auto minmax(0, 1fr) auto auto auto !important;
+        grid-template-columns: auto minmax(0, 1fr) auto auto auto minmax(0, 1fr) !important;
         min-height: 0 !important;
         align-items: center !important;
       }

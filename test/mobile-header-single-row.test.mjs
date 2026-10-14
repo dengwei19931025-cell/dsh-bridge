@@ -78,10 +78,12 @@ test('布局：五列网格 + titleRow 让位 + 三个子元素**全部**显式�
   const tracks = cols[1].replace(/!important/, '')
     .replace(/minmax\(\s*([^,]+),\s*([^)]+)\)/g, 'minmax($1,$2)')   // 去掉函数内空格，避免被按空白切开
     .trim().split(/\s+/);
-  // 前导 | 标题簇(1fr) | 工具组(⌄) | 标签组 | 角标(▯)
-  assert.equal(tracks.length, 5, `必须是五列（前导/标题簇/工具组/标签组/角标），实际：${cols[1]}`);
+  // 前导 | 标题簇(1fr) | 工具组(⌄) | 标签组 | 角标(▯) | 右侧空白(1fr)
+  assert.equal(tracks.length, 6, `必须是六轨（两侧各一个 1fr 空白轨道用于居中），实际：${cols[1]}`);
   assert.deepEqual(tracks.slice(0, 2), ['auto', 'minmax(0,1fr)'],
     `前两列必须保持宿主的 auto / minmax(0,1fr)，实际：${cols[1]}`);
+  assert.equal(tracks[tracks.length - 1], 'minmax(0,1fr)',
+    `最后一轨必须是 1fr 空白（与左侧 1fr 对称才能让胶囊居中），实际：${cols[1]}`);
   assert.match(decls, /min-height:\s*0\s*!important/,
     '必须归零宿主的 min-height:76px —— 那 76px 就是"两行"的高度，省下约 40px 全靠它');
 

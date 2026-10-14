@@ -156,6 +156,14 @@ const measure = () => page.evaluate(() => {
     && segs.utilities.h === segs.tabs.h && segs.corner.h === segs.tabs.h;
   const contiguous = !!(segs.utilities && segs.tabs && segs.corner)
     && Math.abs(segs.utilities.r - segs.tabs.l) <= 1 && Math.abs(segs.tabs.r - segs.corner.l) <= 1;
+
+  // 居中：整条胶囊的中心 vs 头部内容区中心
+  const hb = header.getBoundingClientRect();
+  const hcs = getComputedStyle(header);
+  const contentCenter = (hb.left + parseFloat(hcs.paddingLeft) + hb.right - parseFloat(hcs.paddingRight)) / 2;
+  const barL = Math.min(segs.utilities?.l ?? Infinity, segs.tabs?.l ?? Infinity, segs.corner?.l ?? Infinity);
+  const barR = Math.max(segs.utilities?.r ?? -Infinity, segs.tabs?.r ?? -Infinity, segs.corner?.r ?? -Infinity);
+  const barCenter = (barL + barR) / 2;
   return {
     found: true,
     viewport: `${window.innerWidth}x${window.innerHeight}`,
@@ -187,6 +195,9 @@ const measure = () => page.evaluate(() => {
     segs,
     sameBar,
     contiguous,
+    barCenter: Math.round(barCenter),
+    contentCenter: Math.round(contentCenter),
+    centeringOffset: Math.round(barCenter - contentCenter),
   };
 });
 
@@ -227,6 +238,9 @@ if (!geo.found) {
     /^7px 0px 0px 7px$/.test(geo.segs?.utilities?.radius || '') && /^0px$/.test(geo.segs?.tabs?.radius || '')
       && /^0px 7px 7px 0px$/.test(geo.segs?.corner?.radius || ''),
     `utils=${geo.segs?.utilities?.radius} tabs=${geo.segs?.tabs?.radius} corner=${geo.segs?.corner?.radius}`);
+  say('整条胶囊水平居中（中心与头部内容区中心误差 ≤ 2px）',
+    Math.abs(geo.centeringOffset) <= 2,
+    `barCenter=${geo.barCenter} contentCenter=${geo.contentCenter} offset=${geo.centeringOffset}px`);
   if (geo.mode) {
     say('手机端已隐藏头部「模式胶囊」（创造模式/标准模式）', geo.mode.display === 'none' && !geo.mode.visible,
       `display=${geo.mode.display} visible=${geo.mode.visible}`);
