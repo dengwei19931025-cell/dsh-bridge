@@ -146,16 +146,21 @@ const measure = () => page.evaluate(() => {
     const s = getComputedStyle(el);
     const b = el.getBoundingClientRect();
     return {
-      l: Math.round(b.left), r: Math.round(b.right), h: Math.round(b.height),
+      l: Math.round(b.left), r: Math.round(b.right), h: Math.round(b.height), w: Math.round(b.width),
       bg: s.backgroundColor, radius: s.borderRadius,
     };
   };
   const segs = { utilities: seg(document.querySelector('div[class*="_headerUtilities"]')), tabs: seg(tabs), corner: seg(corner) };
+  const tabWidth = tabs ? Math.round((tabs.querySelector('button') || { getBoundingClientRect: () => ({ width: NaN }) }).getBoundingClientRect().width) : null;
+  const order = (segs.utilities && segs.tabs && segs.corner) ? {
+    tabsBeforeUtils: segs.tabs.r <= segs.utilities.l + 1,
+    utilsBeforeCorner: segs.utilities.r <= segs.corner.l + 1,
+  } : null;
   const sameBar = !!(segs.utilities && segs.tabs && segs.corner)
     && segs.utilities.bg === segs.tabs.bg && segs.corner.bg === segs.tabs.bg
     && segs.utilities.h === segs.tabs.h && segs.corner.h === segs.tabs.h;
   const contiguous = !!(segs.utilities && segs.tabs && segs.corner)
-    && Math.abs(segs.utilities.r - segs.tabs.l) <= 1 && Math.abs(segs.tabs.r - segs.corner.l) <= 1;
+    && Math.abs(segs.tabs.r - segs.utilities.l) <= 1 && Math.abs(segs.utilities.r - segs.corner.l) <= 1;
 
   // 居中：整条胶囊的中心 vs 头部内容区中心
   const hb = header.getBoundingClientRect();
@@ -213,6 +218,8 @@ const measure = () => page.evaluate(() => {
     segs,
     sameBar,
     contiguous,
+    order,
+    tabWidth,
     barCenter: Math.round(barCenter),
     contentCenter: Math.round(contentCenter),
     centeringOffset: Math.round(barCenter - contentCenter),
@@ -243,11 +250,11 @@ if (!geo.found) {
   console.log(`INFO  titleRow=${geo.titleRow.l}..${geo.titleRow.r} corner=${geo.corner?.l}..${geo.corner?.r} tabs=${geo.tabs.l}..${geo.tabs.r}`);
 
   say('手机端头部已从两行收成一行（< 50px，两行时实测 76px）', geo.header.h < 50, `h=${geo.header.h}`);
-  say('网格补出了标题簇/工具组/标签组/角标四列（共 5 轨）',
-    geo.headerCols.split(' ').length >= 5, geo.headerCols);
+  say('网格补出了 标题簇/标签组/⌄/▯ 四列（共 6 轨，两侧各一轨空白用于居中）',
+    geo.headerCols.split(' ').length >= 6, geo.headerCols);
   // 注：titleRow 现在是 display:contents（没有自己的盒子），所以"与 titleRow 同排"不再可测；
   // 改为直接断言三个子元素与标签行都在第 1 行（见下面那条）。
-  say('标签行落在第一行第四列', geo.tabsColumn === '4' && geo.tabsRow === '1', `column=${geo.tabsColumn} row=${geo.tabsRow}`);
+  say('标签行落在第一行第三列（现在是胶囊左端）', geo.tabsColumn === '3' && geo.tabsRow === '1', `column=${geo.tabsColumn} row=${geo.tabsRow}`);
   say('标签行常显（触屏没有 hover，opacity 必须为 1）', geo.tabsOpacity === '1', `opacity=${geo.tabsOpacity}`);
   say('标签行没被藏掉', geo.tabsDisplay !== 'none', geo.tabsDisplay);
   say('标签功能完好（4 个标签一个不少）', geo.tabLabels.length === 4, geo.tabLabels.join('/'));
@@ -255,15 +262,26 @@ if (!geo.found) {
   say('右侧边栏开关已排到「编队」之后', geo.cornerAfterTabs === true,
     `tabs.r=${geo.tabs.r} corner.l=${geo.corner?.l} gap=${geo.cornerToTabsGap}px`);
   say('角标与标签组没有重叠', geo.overlapCornerTabs === 0, `overlap=${geo.overlapCornerTabs}px`);
+  // 用户指定顺序：[对话 轨迹 上下文 编队] [⌄] [▯]
+  say('顺序为 标签组 → ⌄ → ▯',
+    geo.order?.tabsBeforeUtils === true && geo.order?.utilsBeforeCorner === true,
+    JSON.stringify(geo.order));
+  // 用户要求：后加的两段"跟四个标签差不多一样宽，好看一点"
+  const tabW = geo.tabWidth;
+  say('⌄ 与 ▯ 两段各自与单个标签差不多一样宽（差值 ≤ 4px）',
+    typeof tabW === 'number'
+      && Math.abs((geo.segs?.utilities?.w ?? 0) - tabW) <= 4
+      && Math.abs((geo.segs?.corner?.w ?? 0) - tabW) <= 4,
+    `标签宽=${tabW} ⌄段=${geo.segs?.utilities?.w} ▯段=${geo.segs?.corner?.w}`);
   // 三段 [⌄][标签组][▯] 必须真的连成一条（同底色同高 + 首尾相接 + 只有外侧圆角）
   say('三段 [⌄|标签组|▯] 同底色同高（同一条胶囊）', geo.sameBar,
     `utils=${JSON.stringify(geo.segs?.utilities)} tabs=${JSON.stringify(geo.segs?.tabs)} corner=${JSON.stringify(geo.segs?.corner)}`);
-  say('三段首尾相接、无空隙', geo.contiguous,
-    `utils.r=${geo.segs?.utilities?.r} tabs.l=${geo.segs?.tabs?.l} tabs.r=${geo.segs?.tabs?.r} corner.l=${geo.segs?.corner?.l}`);
+  say('三段首尾相接、无空隙（标签组 → ⌄ → ▯）', geo.contiguous,
+    `tabs.r=${geo.segs?.tabs?.r} utils.l=${geo.segs?.utilities?.l} utils.r=${geo.segs?.utilities?.r} corner.l=${geo.segs?.corner?.l}`);
   say('只有最外侧留圆角、中段为直角',
-    /^7px 0px 0px 7px$/.test(geo.segs?.utilities?.radius || '') && /^0px$/.test(geo.segs?.tabs?.radius || '')
+    /^7px 0px 0px 7px$/.test(geo.segs?.tabs?.radius || '') && /^0px$/.test(geo.segs?.utilities?.radius || '')
       && /^0px 7px 7px 0px$/.test(geo.segs?.corner?.radius || ''),
-    `utils=${geo.segs?.utilities?.radius} tabs=${geo.segs?.tabs?.radius} corner=${geo.segs?.corner?.radius}`);
+    `tabs=${geo.segs?.tabs?.radius} utils=${geo.segs?.utilities?.radius} corner=${geo.segs?.corner?.radius}`);
   say('整条胶囊水平居中（中心与头部内容区中心误差 ≤ 2px）',
     Math.abs(geo.centeringOffset) <= 2,
     `barCenter=${geo.barCenter} contentCenter=${geo.contentCenter} offset=${geo.centeringOffset}px`);

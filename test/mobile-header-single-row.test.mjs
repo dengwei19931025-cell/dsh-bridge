@@ -92,10 +92,11 @@ test('布局：五列网格 + titleRow 让位 + 三个子元素**全部**显式�
     'titleRow 必须改 display:contents：角标是它的子元素，不这样无法排到标签组之后');
 
   // 关键回归守卫：三个子元素漏掉任何一个，它都会自动落进下一行（实测 header 被撑到 65px）
+  // 顺序（用户指定）：标签组 → 工具组 ⌄ → 角标 ▯
   const placements = {
     titleCluster: 2,
-    headerUtilities: 3,
-    tabs: 4,
+    tabs: 3,
+    headerUtilities: 4,
     headerCorner: 5,
   };
   for (const [local, col] of Object.entries(placements)) {
@@ -110,10 +111,10 @@ test('布局：五列网格 + titleRow 让位 + 三个子元素**全部**显式�
     '工具组（⌄ 输入框折叠按钮所在处）必须保留——用户明确要求只隐藏 ⋯');
 });
 
-test('三段合成一条连续胶囊：同底色同高、首尾相接，只在最外侧留圆角', () => {
+test('三段合成一条连续胶囊，且后加的两段与单个标签差不多一样宽', () => {
   const rule = (local) => rendered.match(new RegExp(`div\\[class\\*="[A-Za-z0-9_-]+_${local}"\\]\\s*\\{([^}]*)\\}`));
-  const utils = rule('headerUtilities');
   const tabs = rule('tabs');
+  const utils = rule('headerUtilities');
   const corner = rule('headerCorner');
   assert.ok(utils && tabs && corner, '三段都必须有规则');
   const bar = /background:\s*rgba\(0,\s*0,\s*0,\s*0\.08\)\s*!important/;
@@ -123,27 +124,33 @@ test('三段合成一条连续胶囊：同底色同高、首尾相接，只在�
     assert.match(r[1], h22, `${name}总高必须 26px（内容盒 22 + 2×2 内衬）`);
     assert.match(r[1], /padding:\s*2px\s*!important/, `${name}内衬必须与标签组一致`);
     assert.match(r[1], /margin:\s*0\s*!important/, `${name}必须零外边距才能首尾相接无空隙`);
+    // 用户要求：后加的两段"跟四个标签差不多一样宽"（单个标签 44px = 内容盒 40 + 2×2 内衬）
+    assert.match(r[1], /width:\s*40px\s*!important/, `${name}宽度必须与单个标签同宽（内容盒 40px）`);
+    assert.match(r[1], /box-sizing:\s*content-box\s*!important/, `${name}必须显式 content-box（宿主页面不是 border-box）`);
+    assert.match(r[1], /justify-content:\s*center\s*!important/, `${name}里的图标必须居中`);
   }
-  // 只在外侧两端留圆角，相接处为直角 —— 这是"看起来是一条"的关键
-  assert.match(utils[1], /border-radius:\s*7px 0 0 7px\s*!important/, '左端：左侧圆角、右侧直角');
-  assert.match(corner[1], /border-radius:\s*0 7px 7px 0\s*!important/, '右端：左侧直角、右侧圆角');
-  assert.match(tabs[1], /border-radius:\s*0\s*!important/, '中段标签组必须去圆角（成为胶囊中段）');
+  // 只有最外侧两端留圆角，相接处为直角 —— 顺序是 [标签组][⌄][▯]
+  assert.match(tabs[1], /border-radius:\s*7px 0 0 7px\s*!important/, '左端（标签组）：左侧圆角、右侧直角');
+  assert.match(utils[1], /border-radius:\s*0\s*!important/, '中段（工具组）必须两侧直角');
+  assert.match(corner[1], /border-radius:\s*0 7px 7px 0\s*!important/, '右端（角标）：左侧直角、右侧圆角');
   assert.match(tabs[1], /opacity:\s*1\s*!important/, '标签行常显（触屏没有 hover）');
   // 垂直对齐：皮肤给标签行加过 translateY（实测 4px，来自 --dsh-view-tabs-shift），
   // 不清掉它标签行就会比左右两段低 4px；三段还必须都显式 align-self: center。
   assert.match(tabs[1], /transform:\s*none\s*!important/,
     '标签行必须清掉 transform：皮肤 dsh-claude-style 会给它加 translateY（实测 4px），'
     + '单行化后会让它比左右两段低一截');
-  for (const [name, r] of [['工具组', utils], ['标签组', tabs], ['角标', corner]]) {
+  for (const [name, r] of [['标签组', tabs], ['工具组', utils], ['角标', corner]]) {
     assert.match(r[1], /align-self:\s*center\s*!important/,
       `${name}必须显式 align-self: center（宿主给标签行的是 flex-start，不写就会各贴一边）`);
   }
-  // ⌄ 并入胶囊后要与标签同规格，不再是白色圆钮
+  // ⌄ 是用户明确要保留的：工具组不得被藏掉，且它并入胶囊后要与标签同规格
+  assert.doesNotMatch(utils[1], /display:\s*none/, '工具组（⌄ 所在处）必须保留');
   const fold = source.match(/div\[class\*="__F_CONV__headerUtilities"\]\s+\.dsh-header-fold-btn\s*\{([^}]*)\}/);
   assert.ok(fold, '必须有一条"胶囊内 ⌄"规则，且选择器要带父级（见下）');
   assert.match(fold[1], /background:\s*transparent\s*!important/, '⌄ 在胶囊里应透明，不再是白底圆钮');
   assert.match(fold[1], /border:\s*none\s*!important/, '⌄ 不应再带边框');
   assert.match(fold[1], /height:\s*22px\s*!important/, '⌄ 高度必须与标签一致（22px 内容盒）');
+  assert.match(fold[1], /width:\s*40px\s*!important/, '⌄ 必须填满该格（与标签同宽）');
   // 回归守卫：文件后面还有一条同名的 `.dsh-header-fold-btn`（独立圆形钮）规则，
   // 同权重时后者按顺序胜出 —— 实测只写 `.dsh-header-fold-btn` 会被它盖回去。
   assert.match(source, /div\[class\*="__F_CONV__headerUtilities"\]\s+\.dsh-header-fold-btn/,
@@ -188,10 +195,10 @@ test('手机端隐藏「更多操作」(⋯)，但保留 ⌄', () => {
     '⌄（本插件的输入框折叠按钮）不得被藏掉——用户明确保留它');
 });
 
-test('标签行：落在第一行最后一列、常显、且不得用内部偏移挪位置', () => {
+test('标签行：落在胶囊左端（第 3 列第 1 行），且不得用内部偏移挪位置', () => {
   assert.ok(tabsRules.length > 0, '必须有一条标签行规则');
   const all = tabsRules.join('\n');
-  assert.match(all, /grid-column:\s*4\s*!important/, '标签行必须落在最后一列（间隔列之后）');
+  assert.match(all, /grid-column:\s*3\s*!important/, '标签行现在排在 ⌄ 之前（⌄ 已移到编队后面）');
   assert.match(all, /grid-row:\s*1\s*!important/, '标签行必须落在第一行');
   assert.match(all, /margin:\s*0\s*!important/, '必须清掉标签行自带的 margin-top:10px');
   assert.match(all, /opacity:\s*1\s*!important/,

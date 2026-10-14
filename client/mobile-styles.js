@@ -503,7 +503,7 @@ export const MOBILE_STYLES_CSS = `
          （面包屑标题已被本插件在移动端隐藏），第 2 行 .<F>_tabs。实测 433px：页面
          y 52..128 全是它（0..52 是本插件自绘的移动顶栏），合并后 37px，**省约 40px**。
 
-         目标排布（从左到右）：[空白 1fr] [标题簇] [工具组 ⌄] [标签组 对话|轨迹|上下文|编队] [角标 ▯] [空白 1fr]
+         目标排布（从左到右）：[空白 1fr] [标题簇] [标签组 对话|轨迹|上下文|编队] [工具组 ⌄] [角标 ▯] [空白 1fr]
                                   ↑ 两侧各一个 1fr 空白轨道 → 胶囊**水平居中**
                                    （实测：只留左侧 1fr 时胶囊中心比头部中心偏右 69px）
 
@@ -512,7 +512,7 @@ export const MOBILE_STYLES_CSS = `
          （它自己不生成盒子），三个子元素就直接成为 header 的网格项，再逐个显式落格。
          ⚠️ 三个子元素必须**全部**显式定位：漏掉任何一个，它都会自动落进下一行 ——
          实测漏掉 headerUtilities 时 header 被撑到 65px、⌄ 掉到第二行。
-         ⚠️ 角标的高度要写内容盒 22px（+ 2×2 内衬 = 26px），与标签组同高；写成 26px 会
+         ⚠️ 三段的高度都要写内容盒 22px（+ 2×2 内衬 = 26px），彼此同高；写成 26px 会
          变成 30px（宿主页面不是 border-box）。
          ⚠️ 电脑端一律不生效：本块在 @media (max-width:767px) 内。
          ⚠️ 标签行自身只改网格列位置与 opacity，绝不动它的 border/padding：皮肤
@@ -536,34 +536,43 @@ export const MOBILE_STYLES_CSS = `
         grid-column: 5 !important;
         grid-row: 1 !important;
         margin: 0 !important;
+        width: 40px !important;
         height: 22px !important;
         padding: 2px !important;
+        box-sizing: content-box !important;
         border-radius: 0 7px 7px 0 !important;
         background: rgba(0, 0, 0, 0.08) !important;
         display: flex !important;
         align-items: center !important;
+        justify-content: center !important;
         align-self: center !important;
       }
       div[class*="__F_CONV__headerCorner"] button {
-        width: 22px !important;
+        width: 100% !important;
         height: 22px !important;
         border-radius: 5px !important;
       }
 
-      /* ── 把 [工具组 ⌄] [标签组] [角标 ▯] 合成一条连续胶囊 ──────────────────────────
-         用户要求"这些都组合成"一条。做法：三段同底色（rgba(0,0,0,.08)）同高（26px 总高）、
-         首尾相接（margin 归零、段间无间隙），只在最外侧两端保留 7px 圆角、
-         相接处为直角 —— 视觉上就是一条胶囊。 */
+      /* ── 把 [标签组] [工具组 ⌄] [角标 ▯] 合成一条连续胶囊 ──────────────────────────
+         用户要求"组合成一条"，随后又要求"⌄ 平移到编队后面"。
+         做法：三段同底色（rgba(0,0,0,.08)）同高（26px 总高）、首尾相接（margin 归零、
+         段间无间隙），只在最外侧两端保留 7px 圆角、相接处为直角 —— 视觉上就是一条胶囊。
+         另：后加进来的这两段（⌄ / ▯）要与单个标签**差不多一样宽**（用户要求"跟四个标签
+         差不多一样宽，好看一点"），故内容盒各取 40px（+2×2 内衬 = 44px，与单个标签
+         同宽），图标在格内居中。 */
       div[class*="__F_CONV__headerUtilities"] {
-        grid-column: 3 !important;
+        grid-column: 4 !important;   /* 排在标签组之后 */
         grid-row: 1 !important;
         margin: 0 !important;
+        width: 40px !important;
         height: 22px !important;
         padding: 2px !important;
-        border-radius: 7px 0 0 7px !important;
+        box-sizing: content-box !important;
+        border-radius: 0 !important;   /* 中段：两侧直角 */
         background: rgba(0, 0, 0, 0.08) !important;
         display: flex !important;
         align-items: center !important;
+        justify-content: center !important;
         align-self: center !important;
       }
       /* 中间的标签组：去掉自身圆角，成为胶囊中段。
@@ -575,11 +584,11 @@ export const MOBILE_STYLES_CSS = `
          ⚠️ align-self 也要显式写：宿主给标签行的是 flex-start，另两段是 auto，
          不写就会出现"三段各自贴不同边"的对齐差异。 */
       div[class*="__F_CONV__tabs"] {
-        grid-column: 4 !important;
+        grid-column: 3 !important;   /* 现在是胶囊左端（⌄ 已移到它后面） */
         grid-row: 1 !important;
         margin: 0 !important;
         opacity: 1 !important;
-        border-radius: 0 !important;
+        border-radius: 7px 0 0 7px !important;   /* 左端：左侧圆角、右侧直角 */
         transform: none !important;
         align-self: center !important;
       }
@@ -589,8 +598,8 @@ export const MOBILE_STYLES_CSS = `
          同权重时后者按顺序胜出 —— 实测只写 .dsh-header-fold-btn 会被它盖回去，
          ⌄ 在胶囊里仍是白底方块。 */
       div[class*="__F_CONV__headerUtilities"] .dsh-header-fold-btn {
-        width: 28px !important;
-        min-width: 28px !important;
+        width: 40px !important;
+        min-width: 40px !important;
         height: 22px !important;
         padding: 0 !important;
         border: none !important;
