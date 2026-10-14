@@ -773,7 +773,7 @@ var MOBILE_STYLES_CSS = `
         display: flex !important;
         align-items: center !important;
         justify-content: space-between !important;
-        gap: 8px !important;
+        gap: 6px !important;
         width: 100% !important;
         padding: 2px 2px 4px !important;
         box-sizing: border-box !important;
@@ -782,43 +782,23 @@ var MOBILE_STYLES_CSS = `
       div[class*="__F_COMPOSER__tools"] {
         display: flex !important;
         align-items: center !important;
-        gap: 8px !important;
+        gap: 6px !important;
         flex: 1 1 auto !important;
         min-width: 0 !important;
         overflow: hidden !important;
       }
 
-      /* \u6743\u9650\u6A21\u5F0F\u533A\uFF08Read / Edit / Auto / Yolo\uFF0C\u76AE\u80A4\u753B\u7684\u80F6\u56CA\uFF09
-         \u89C2\u611F\u4FEE\u6B63\uFF08\u5B9E\u6D4B 390px \u7684\u96BE\u770B\u70B9\uFF09\uFF1A\u539F\u6765\u53EA\u9732\u51FA 1.5 \u4E2A\u80F6\u56CA\uFF0C\u800C\u4E14\u6FC0\u6D3B\u7684\u90A3\u4E2A\u88AB
-         **\u9F50\u5237\u5237\u5207\u65AD**\uFF08\u50CF\u574F\u6389\u4E86\uFF09\uFF0C\u53F3\u4FA7\u8FD8\u7A7A\u4E00\u5927\u7247 \u2014\u2014 \u6574\u4F53\u663E\u5F97\u6563\u3001\u65AD\u3002
-         \u2460 \u80F6\u56CA\u7D27\u51D1\u5316\uFF1A\u5B57\u53F7 13\u219211.5\u3001\u5185\u886C 10\u21928\u3001\u80F6\u56CA\u95F4\u9699 4\u21922\uFF08\u540C\u5BBD\u80FD\u591A\u9732\u51FA\u4E00\u4E2A\uFF09
-         \u2461 \u53F3\u7F18\u6E10\u9690\uFF08mask\uFF09\uFF1A\u5207\u65AD\u4ECE"\u786C\u5207"\u53D8\u6210"\u8FD8\u80FD\u6ED1"\u7684\u63D0\u793A\uFF1B\u80F6\u56CA\u653E\u5F97\u4E0B\u65F6\u6E10\u9690\u843D\u5728
-            \u7A7A\u767D\u5904\uFF0C\u89C6\u89C9\u4E0A\u7B49\u4E8E\u6CA1\u6709\uFF08\u81EA\u9650\uFF0C\u4E0D\u9700\u8981\u989D\u5916\u6761\u4EF6\uFF09
-         \u2462 \u4E0E\u53F3\u4FA7\u7EC4\u7684\u95F4\u8DDD\u7EDF\u4E00\u4E3A 8px\uFF08\u539F\u5148 6/6/2 \u4E0D\u9F50\uFF09 */
       div[class*="__F_COMPOSER__modes"] {
         display: flex !important;
         align-items: center !important;
-        gap: 2px !important;
+        gap: 4px !important;
         flex: 1 1 auto !important;
         min-width: 0 !important;
         overflow-x: auto !important;
         scrollbar-width: none !important;
-        padding-right: 18px !important;
-        -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent 100%) !important;
-        mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent 100%) !important;
       }
       div[class*="__F_COMPOSER__modes"]::-webkit-scrollbar {
         display: none !important;
-      }
-      div[class*="__F_COMPOSER__modes"] button {
-        /* \u26A0\uFE0F \u53EA\u6536\u7D27**\u6A2A\u5411**\u5185\u886C\uFF1A\u5199\u6210 padding \u7B80\u5199\u4F1A\u628A\u7EB5\u5411\u5185\u886C\u4E00\u8D77\u6E05\u96F6\uFF0C
-           \u80F6\u56CA\u9AD8\u5EA6\u4F1A\u4ECE 24px \u6389\u5230 18px\uFF08\u5B9E\u6D4B\uFF09\uFF0C\u70B9\u6309\u533A\u53D8\u5C0F\u3001\u89C2\u611F\u4E5F\u53D8"\u6241"\u3002
-           \u6545\u663E\u5F0F\u7ED9 min-height \u515C\u4F4F\u9AD8\u5EA6\u3002 */
-        padding-left: 8px !important;
-        padding-right: 8px !important;
-        font-size: 11.5px !important;
-        letter-spacing: 0 !important;
-        min-height: 22px !important;
       }
 
       button[class*="__F_ACCESS__trigger"] {
@@ -830,7 +810,7 @@ var MOBILE_STYLES_CSS = `
         display: flex !important;
         align-items: center !important;
         justify-content: flex-end !important;
-        gap: 8px !important;
+        gap: 6px !important;
         /* \u26A0\uFE0F 0 0 auto + min-width:max-content\uFF1A\u7EDD\u4E0D\u6536\u7F29\uFF0C\u89C1\u672C\u6BB5\u9876\u90E8\u8BF4\u660E */
         flex: 0 0 auto !important;
         min-width: max-content !important;

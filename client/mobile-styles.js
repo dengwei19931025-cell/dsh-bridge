@@ -748,7 +748,7 @@ export const MOBILE_STYLES_CSS = `
         display: flex !important;
         align-items: center !important;
         justify-content: space-between !important;
-        gap: 8px !important;
+        gap: 6px !important;
         width: 100% !important;
         padding: 2px 2px 4px !important;
         box-sizing: border-box !important;
@@ -757,43 +757,23 @@ export const MOBILE_STYLES_CSS = `
       div[class*="__F_COMPOSER__tools"] {
         display: flex !important;
         align-items: center !important;
-        gap: 8px !important;
+        gap: 6px !important;
         flex: 1 1 auto !important;
         min-width: 0 !important;
         overflow: hidden !important;
       }
 
-      /* 权限模式区（Read / Edit / Auto / Yolo，皮肤画的胶囊）
-         观感修正（实测 390px 的难看点）：原来只露出 1.5 个胶囊，而且激活的那个被
-         **齐刷刷切断**（像坏掉了），右侧还空一大片 —— 整体显得散、断。
-         ① 胶囊紧凑化：字号 13→11.5、内衬 10→8、胶囊间隙 4→2（同宽能多露出一个）
-         ② 右缘渐隐（mask）：切断从"硬切"变成"还能滑"的提示；胶囊放得下时渐隐落在
-            空白处，视觉上等于没有（自限，不需要额外条件）
-         ③ 与右侧组的间距统一为 8px（原先 6/6/2 不齐） */
       div[class*="__F_COMPOSER__modes"] {
         display: flex !important;
         align-items: center !important;
-        gap: 2px !important;
+        gap: 4px !important;
         flex: 1 1 auto !important;
         min-width: 0 !important;
         overflow-x: auto !important;
         scrollbar-width: none !important;
-        padding-right: 18px !important;
-        -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent 100%) !important;
-        mask-image: linear-gradient(to right, #000 calc(100% - 18px), transparent 100%) !important;
       }
       div[class*="__F_COMPOSER__modes"]::-webkit-scrollbar {
         display: none !important;
-      }
-      div[class*="__F_COMPOSER__modes"] button {
-        /* ⚠️ 只收紧**横向**内衬：写成 padding 简写会把纵向内衬一起清零，
-           胶囊高度会从 24px 掉到 18px（实测），点按区变小、观感也变"扁"。
-           故显式给 min-height 兜住高度。 */
-        padding-left: 8px !important;
-        padding-right: 8px !important;
-        font-size: 11.5px !important;
-        letter-spacing: 0 !important;
-        min-height: 22px !important;
       }
 
       button[class*="__F_ACCESS__trigger"] {
@@ -805,7 +785,7 @@ export const MOBILE_STYLES_CSS = `
         display: flex !important;
         align-items: center !important;
         justify-content: flex-end !important;
-        gap: 8px !important;
+        gap: 6px !important;
         /* ⚠️ 0 0 auto + min-width:max-content：绝不收缩，见本段顶部说明 */
         flex: 0 0 auto !important;
         min-width: max-content !important;
