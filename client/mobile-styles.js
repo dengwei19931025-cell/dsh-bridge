@@ -528,6 +528,25 @@ export const MOBILE_STYLES_CSS = `
         opacity: 1 !important;
       }
 
+      /* 手机端隐藏两个"只对电脑有意义"的头部按钮：
+         ① 后台任务触发器（@deepseek-ai/dsh-client-ui-jobs）—— aria-label 形如
+            「N 个后台任务运行中」/「N background jobs running」。手机上没有管理后台任务的需求，
+            留着纯占位；
+         ② 「用 {app} 打开」（@deepseek-ai/dsh-client-ui-open-in-app）—— aria-label 形如
+            「用 文件资源管理器 打开」/「Open in File Explorer」，它是在**电脑本机**唤起
+            文件资源管理器/访达，手机上点了没有任何作用（那个小图标就是它）。
+            ⚠️ 必须连 menuAnchor / split 一起藏：这一组是"外层 menuAnchor 包着 [按钮 + 1px 分隔线]"，
+            只藏按钮会在头部残留一条竖线（实测残留 OMoRSG_split 1px solid rgba(0,0,0,.16)）。
+         两者都来自宿主客户端包的 CSS-module（哈希随 DSH 版本重算），故一律走槽位占位符 +
+         运行时探测/基线兜底，不硬编码；解析不出来时占位符会变成永不匹配的哨兵，
+         宁可"没藏掉"也不会误伤别的按钮。 */
+      button[class*="__F_JOBS__trigger"],
+      button[class*="__F_FILEOPEN__main"],
+      [class*="__F_FILEOPEN__menuAnchor"],
+      [class*="__F_FILEOPEN__split"] {
+        display: none !important;
+      }
+
       /* 子代理展开菜单在移动端右对齐与宽度自适应。
          注：menu 这个本地名在 0.1.x(cubgiG) 与 0.2.0(_oGoKq) 的 Agent 预设族里都不存在
          （实测），本规则在这两个宿主上不命中；保留是为了不改动旧行为，等采到真实锚点再收敛。 */

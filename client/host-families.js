@@ -173,6 +173,8 @@ const composerCard = (doc) => {
  * 槽位表：每个槽位＝一组同族规则，独立探测、独立降级。
  * `known` 为已核实的历代前缀（顺序＝优先级）；只在「真的命中页面」或探测失败时才采用。
  * `critical` 的槽位探测失败会触发显式告警（其余只记 debug）。
+ * `optional` 的槽位对应"可能压根没渲染"的 UI（如后台任务按钮），它们只能"假设"时
+ * 不计入 unverified/missing —— 否则 compat 会恒为 partial，淹没真信号。
  */
 export const FAMILY_SLOTS = {
   // 设置中心弹窗（手机端样式失效的主战场）
@@ -250,6 +252,27 @@ export const FAMILY_SLOTS = {
     locals: ['toggleCluster'],
     known: ['W-zNGW'],
     anchors: [{ local: 'toggleCluster', find: (doc) => doc.querySelector?.('div[class*="toggleCluster"]') || null }],
+  },
+  // 后台任务触发器（@deepseek-ai/dsh-client-ui-jobs）：手机端整体隐藏，见 mobile-styles.js。
+  // aria-label 取自该包的 i18n：zh「{count} 个后台任务运行中」/ en「{count} background job(s) running」。
+  // optional：没有后台任务在跑时它压根不渲染，缺席是常态，不能把 compat 拖成 partial。
+  JOBS: {
+    optional: true,
+    locals: ['trigger'],
+    known: ['QsffPG'],
+    anchors: [{ local: 'trigger', find: aria(/后台任务|background jobs? running/i) }],
+  },
+  // 「用 {app} 打开」按钮（@deepseek-ai/dsh-client-ui-open-in-app）：它是在**电脑本机**
+  // 唤起文件资源管理器/访达，手机上点了没有任何作用 → 手机端**整组**隐藏。
+  // 注意不能只藏按钮本体：这一组是 menuAnchor 包着 [按钮 + split 分隔线]，
+  // 只藏按钮会在头部残留一条 1px 竖线（实测 OMoRSG_split，1px solid rgba(0,0,0,.16)）。
+  // aria-label 取自该包 i18n：zh「用 {app} 打开」/ en「Open in {app}」。
+  // optional：只有当前会话/工作区能定位到本地路径时才渲染。
+  FILEOPEN: {
+    optional: true,
+    locals: ['main', 'menuAnchor', 'split', 'appIcon'],
+    known: ['OMoRSG'],
+    anchors: [{ local: 'main', find: aria(/用 .{1,12}打开|Open in /) }],
   },
 };
 
@@ -344,11 +367,15 @@ export function resolveHostFamilies(doc = globalThis.document, slots = FAMILY_SL
       if (cand) {
         family = cand;
         source = 'assumed';
-        unverified.push(slot);
+        // optional 槽位不进 unverified：它们对应的是"可能压根没渲染"的按钮
+        // （如"后台任务"要有任务在跑、"用文件打开"要有可定位的本地路径），
+        // 缺席是常态。若算进 unverified，compat 会在绝大多数页面上恒为 partial，
+        // 把真正的信号（主链路某槽位只能假设）淹没。
+        if (!spec.optional) unverified.push(slot);
       } else {
         family = ABSENT_FAMILY;
         source = 'absent';
-        missing.push(slot);
+        if (!spec.optional) missing.push(slot);
       }
     }
 

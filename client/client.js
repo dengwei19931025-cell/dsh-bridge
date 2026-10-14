@@ -553,6 +553,25 @@ var MOBILE_STYLES_CSS = `
         opacity: 1 !important;
       }
 
+      /* \u624B\u673A\u7AEF\u9690\u85CF\u4E24\u4E2A"\u53EA\u5BF9\u7535\u8111\u6709\u610F\u4E49"\u7684\u5934\u90E8\u6309\u94AE\uFF1A
+         \u2460 \u540E\u53F0\u4EFB\u52A1\u89E6\u53D1\u5668\uFF08@deepseek-ai/dsh-client-ui-jobs\uFF09\u2014\u2014 aria-label \u5F62\u5982
+            \u300CN \u4E2A\u540E\u53F0\u4EFB\u52A1\u8FD0\u884C\u4E2D\u300D/\u300CN background jobs running\u300D\u3002\u624B\u673A\u4E0A\u6CA1\u6709\u7BA1\u7406\u540E\u53F0\u4EFB\u52A1\u7684\u9700\u6C42\uFF0C
+            \u7559\u7740\u7EAF\u5360\u4F4D\uFF1B
+         \u2461 \u300C\u7528 {app} \u6253\u5F00\u300D\uFF08@deepseek-ai/dsh-client-ui-open-in-app\uFF09\u2014\u2014 aria-label \u5F62\u5982
+            \u300C\u7528 \u6587\u4EF6\u8D44\u6E90\u7BA1\u7406\u5668 \u6253\u5F00\u300D/\u300COpen in File Explorer\u300D\uFF0C\u5B83\u662F\u5728**\u7535\u8111\u672C\u673A**\u5524\u8D77
+            \u6587\u4EF6\u8D44\u6E90\u7BA1\u7406\u5668/\u8BBF\u8FBE\uFF0C\u624B\u673A\u4E0A\u70B9\u4E86\u6CA1\u6709\u4EFB\u4F55\u4F5C\u7528\uFF08\u90A3\u4E2A\u5C0F\u56FE\u6807\u5C31\u662F\u5B83\uFF09\u3002
+            \u26A0\uFE0F \u5FC5\u987B\u8FDE menuAnchor / split \u4E00\u8D77\u85CF\uFF1A\u8FD9\u4E00\u7EC4\u662F"\u5916\u5C42 menuAnchor \u5305\u7740 [\u6309\u94AE + 1px \u5206\u9694\u7EBF]"\uFF0C
+            \u53EA\u85CF\u6309\u94AE\u4F1A\u5728\u5934\u90E8\u6B8B\u7559\u4E00\u6761\u7AD6\u7EBF\uFF08\u5B9E\u6D4B\u6B8B\u7559 OMoRSG_split 1px solid rgba(0,0,0,.16)\uFF09\u3002
+         \u4E24\u8005\u90FD\u6765\u81EA\u5BBF\u4E3B\u5BA2\u6237\u7AEF\u5305\u7684 CSS-module\uFF08\u54C8\u5E0C\u968F DSH \u7248\u672C\u91CD\u7B97\uFF09\uFF0C\u6545\u4E00\u5F8B\u8D70\u69FD\u4F4D\u5360\u4F4D\u7B26 +
+         \u8FD0\u884C\u65F6\u63A2\u6D4B/\u57FA\u7EBF\u515C\u5E95\uFF0C\u4E0D\u786C\u7F16\u7801\uFF1B\u89E3\u6790\u4E0D\u51FA\u6765\u65F6\u5360\u4F4D\u7B26\u4F1A\u53D8\u6210\u6C38\u4E0D\u5339\u914D\u7684\u54E8\u5175\uFF0C
+         \u5B81\u53EF"\u6CA1\u85CF\u6389"\u4E5F\u4E0D\u4F1A\u8BEF\u4F24\u522B\u7684\u6309\u94AE\u3002 */
+      button[class*="__F_JOBS__trigger"],
+      button[class*="__F_FILEOPEN__main"],
+      [class*="__F_FILEOPEN__menuAnchor"],
+      [class*="__F_FILEOPEN__split"] {
+        display: none !important;
+      }
+
       /* \u5B50\u4EE3\u7406\u5C55\u5F00\u83DC\u5355\u5728\u79FB\u52A8\u7AEF\u53F3\u5BF9\u9F50\u4E0E\u5BBD\u5EA6\u81EA\u9002\u5E94\u3002
          \u6CE8\uFF1Amenu \u8FD9\u4E2A\u672C\u5730\u540D\u5728 0.1.x(cubgiG) \u4E0E 0.2.0(_oGoKq) \u7684 Agent \u9884\u8BBE\u65CF\u91CC\u90FD\u4E0D\u5B58\u5728
          \uFF08\u5B9E\u6D4B\uFF09\uFF0C\u672C\u89C4\u5219\u5728\u8FD9\u4E24\u4E2A\u5BBF\u4E3B\u4E0A\u4E0D\u547D\u4E2D\uFF1B\u4FDD\u7559\u662F\u4E3A\u4E86\u4E0D\u6539\u52A8\u65E7\u884C\u4E3A\uFF0C\u7B49\u91C7\u5230\u771F\u5B9E\u951A\u70B9\u518D\u6536\u655B\u3002 */
@@ -1522,6 +1541,27 @@ var FAMILY_SLOTS = {
     locals: ["toggleCluster"],
     known: ["W-zNGW"],
     anchors: [{ local: "toggleCluster", find: (doc) => doc.querySelector?.('div[class*="toggleCluster"]') || null }]
+  },
+  // 后台任务触发器（@deepseek-ai/dsh-client-ui-jobs）：手机端整体隐藏，见 mobile-styles.js。
+  // aria-label 取自该包的 i18n：zh「{count} 个后台任务运行中」/ en「{count} background job(s) running」。
+  // optional：没有后台任务在跑时它压根不渲染，缺席是常态，不能把 compat 拖成 partial。
+  JOBS: {
+    optional: true,
+    locals: ["trigger"],
+    known: ["QsffPG"],
+    anchors: [{ local: "trigger", find: aria(/后台任务|background jobs? running/i) }]
+  },
+  // 「用 {app} 打开」按钮（@deepseek-ai/dsh-client-ui-open-in-app）：它是在**电脑本机**
+  // 唤起文件资源管理器/访达，手机上点了没有任何作用 → 手机端**整组**隐藏。
+  // 注意不能只藏按钮本体：这一组是 menuAnchor 包着 [按钮 + split 分隔线]，
+  // 只藏按钮会在头部残留一条 1px 竖线（实测 OMoRSG_split，1px solid rgba(0,0,0,.16)）。
+  // aria-label 取自该包 i18n：zh「用 {app} 打开」/ en「Open in {app}」。
+  // optional：只有当前会话/工作区能定位到本地路径时才渲染。
+  FILEOPEN: {
+    optional: true,
+    locals: ["main", "menuAnchor", "split", "appIcon"],
+    known: ["OMoRSG"],
+    anchors: [{ local: "main", find: aria(/用 .{1,12}打开|Open in /) }]
   }
 };
 function criticalSettingsHit(doc, family) {
@@ -1586,11 +1626,11 @@ function resolveHostFamilies(doc = globalThis.document, slots = FAMILY_SLOTS) {
       if (cand) {
         family = cand;
         source = "assumed";
-        unverified.push(slot);
+        if (!spec.optional) unverified.push(slot);
       } else {
         family = ABSENT_FAMILY;
         source = "absent";
-        missing.push(slot);
+        if (!spec.optional) missing.push(slot);
       }
     }
     families[slot] = family;

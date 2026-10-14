@@ -117,6 +117,70 @@ test('不硬编码宿主哈希：必须走 __F_CONV__ 占位符', () => {
     '不得硬编码宿主哈希：宿主换代重算哈希后这条改写会静默失效');
 });
 
+test('槽位表：JOBS 与 FILEOPEN 必须带中英双语锚点（英文宿主也要认得出）', () => {
+  // 锚点返回的是闭包，正则捕获在闭包里，源码文本里看不到；
+  // 所以这里用假 doc **实际调用**锚点函数来验（行为断言，比正则匹配源码可靠）。
+  const fakeDoc = (label, classes) => ({
+    querySelectorAll: () => [{ getAttribute: () => label, classList: classes }],
+  });
+
+  const cases = {
+    JOBS: {
+      local: 'trigger',
+      classes: ['QsffPG_trigger'],
+      hit: ['1 个后台任务运行中', '2 个后台任务运行中', '1 background job running', '2 background jobs running'],
+    },
+    FILEOPEN: {
+      local: 'main',
+      classes: ['OMoRSG_main'],
+      hit: ['用 文件资源管理器 打开', '用 访达 打开', 'Open in File Explorer'],
+    },
+  };
+
+  for (const [slot, spec] of Object.entries(cases)) {
+    const family = FAMILY_SLOTS[slot];
+    assert.ok(family?.locals?.includes(spec.local), `缺少 ${slot} 槽位或本地名 ${spec.local}`);
+    assert.ok(family.known?.length >= 1, `${slot} 必须带 known 基线（锚点失配时的兜底）`);
+    const find = family.anchors?.[0]?.find;
+    assert.equal(typeof find, 'function', `${slot} 必须带锚点（否则只能靠会过期的基线）`);
+    for (const label of spec.hit) {
+      assert.ok(find(fakeDoc(label, spec.classes)), `${slot} 锚点认不出「${label}」（中英双语都要认得出）`);
+    }
+    assert.equal(find(fakeDoc('打开右侧边栏', ['wSkVaW_corner'])), null, `${slot} 锚点不得误命中无关按钮`);
+  }
+});
+
+test('可选槽位：JOBS / FILEOPEN 缺席不得把 compat 拖成 partial', () => {
+  assert.equal(FAMILY_SLOTS.JOBS.optional, true, 'JOBS 必须标 optional（没有后台任务时它不渲染）');
+  assert.equal(FAMILY_SLOTS.FILEOPEN.optional, true, 'FILEOPEN 必须标 optional（无本地路径时它不渲染）');
+  const src = read('client/host-families.js');
+  assert.match(src, /if \(!spec\.optional\) unverified\.push\(slot\)/,
+    'optional 槽位必须排除在 unverified 之外，否则 compat 会恒为 partial');
+  assert.match(src, /if \(!spec\.optional\) missing\.push\(slot\)/,
+    'optional 槽位必须排除在 missing 之外');
+});
+
+test('手机端隐藏后台任务与「用文件资源管理器打开」两个按钮', () => {
+  const hideIdx = cssNoComment.indexOf('button[class*="__F_JOBS__trigger"]');
+  assert.ok(hideIdx > 0, '源码里找不到隐藏规则（占位符写法被改？）');
+  const blocks = enclosingBlocks(cssNoComment, hideIdx);
+  assert.equal(blocks.length, 1, `隐藏规则应当只被一层块包住，实际：${JSON.stringify(blocks)}`);
+  assert.match(blocks[0], /^@media\s*\(max-width:\s*767px\)$/,
+    '隐藏必须限定手机端：电脑端要保留这两个按钮（后台任务/在文件资源管理器中打开在桌面是有用的）');
+
+  const hideRule = rendered.match(
+    /button\[class\*="[A-Za-z0-9_-]+_trigger"\],\s*button\[class\*="[A-Za-z0-9_-]+_main"\],\s*\[class\*="[A-Za-z0-9_-]+_menuAnchor"\],\s*\[class\*="[A-Za-z0-9_-]+_split"\]\s*\{([^}]*)\}/,
+  );
+  assert.ok(hideRule, '隐藏规则必须覆盖 JOBS__trigger + FILEOPEN 的 main/menuAnchor/split 四件');
+  assert.match(hideRule[1], /display:\s*none\s*!important/, '必须是 display:none !important');
+  // menuAnchor/split 是"整组隐藏"的关键：只藏按钮会在头部残留一条 1px 竖线（实测）
+  assert.ok(FAMILY_SLOTS.FILEOPEN.locals.includes('menuAnchor'), 'FILEOPEN 必须收录 menuAnchor（外层包裹）');
+  assert.ok(FAMILY_SLOTS.FILEOPEN.locals.includes('split'), 'FILEOPEN 必须收录 split（1px 分隔线）');
+
+  assert.doesNotMatch(source, /class\*="(QsffPG|OMoRSG)_/,
+    '不得硬编码这两个包的哈希：必须走 __F_JOBS__ / __F_FILEOPEN__ 占位符（宿主换代重算哈希）');
+});
+
 test('产物同步：client.js 里必须带上该改写（否则跑 npm run build:client）', () => {
   assert.match(rawBundle, /_tabs"\]/, '产物缺少标签行规则，请运行 npm run build:client');
   assert.match(rawBundle, /grid-column: 4 !important/, '产物缺少标签列排布，请运行 npm run build:client');

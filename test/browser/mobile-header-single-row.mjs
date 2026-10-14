@@ -73,7 +73,7 @@ async function enterSession() {
   return null;
 }
 
-/** 量头部几何 + 标签行可见性 */
+/** 量头部几何 + 标签行可见性 + 两个应被隐藏的按钮 */
 const measure = () => page.evaluate(() => {
   const q = (s) => document.querySelector(s);
   const rect = (e) => {
@@ -86,8 +86,38 @@ const measure = () => page.evaluate(() => {
   const titleRow = q('div[class*="_titleRow"]');
   const corner = q('div[class*="_headerCorner"]');
   const tabs = q('div[class*="_tabs"]');
+  // 这两个按钮的类名哈希随 DSH 版本变，故按 aria-label 认（中英双语），与源码锚点一致
+  const byLabel = (re) => [...document.querySelectorAll('button[aria-label]')]
+    .find((b) => re.test(b.getAttribute('aria-label') || '')) || null;
+  const jobs = byLabel(/后台任务|background jobs? running/i);
+  const fileOpen = byLabel(/用 .{1,12}打开|Open in /);
+  const hiddenInfo = (el) => (el ? {
+    label: el.getAttribute('aria-label'),
+    display: getComputedStyle(el).display,
+    visible: el.getBoundingClientRect().height > 0,
+  } : null);
+
+  // 残留分隔竖线计数：titleRow 里"仍可见、宽 ≤4px、高 ≥8px、带左边框"的元素。
+  // 隐藏 open-in-app 整组时若只藏按钮本体，这里会数到 1 条（实测 1px solid rgba(0,0,0,.16)）。
+  const leftoverDividers = titleRow
+    ? [...titleRow.querySelectorAll('*')].filter((el) => {
+        const b = el.getBoundingClientRect();
+        if (b.width === 0 || b.width > 4 || b.height < 8) return false;
+        const cs2 = getComputedStyle(el);
+        return cs2.display !== 'none' && cs2.borderLeftStyle !== 'none' && cs2.borderLeftWidth !== '0px';
+      }).length
+    : null;
+
   if (!header || !titleRow || !tabs) {
-    return { found: false, hasHeader: !!header, hasTitleRow: !!titleRow, hasTabs: !!tabs };
+    return {
+      found: false,
+      hasHeader: !!header,
+      hasTitleRow: !!titleRow,
+      hasTabs: !!tabs,
+      jobs: hiddenInfo(jobs),
+      fileOpen: hiddenInfo(fileOpen),
+      leftoverDividers,
+    };
   }
   const c = rect(corner);
   const t = rect(tabs);
@@ -110,6 +140,9 @@ const measure = () => page.evaluate(() => {
     cornerToTabsGap: (c && t) ? t.l - c.r : null,
     // 内容右边界 = 视口宽 - 头部右内边距(16px)
     overflowRight: t.r - (window.innerWidth - 16),
+    jobs: hiddenInfo(jobs),
+    fileOpen: hiddenInfo(fileOpen),
+    leftoverDividers,
   };
 });
 
@@ -141,6 +174,23 @@ if (!geo.found) {
   say('标签行没被藏掉', geo.tabsDisplay !== 'none', geo.tabsDisplay);
   say('标签功能完好（4 个标签一个不少）', geo.tabLabels.length === 4, geo.tabLabels.join('/'));
   say('标签行没有溢出内容右边界', geo.overflowRight <= 0, `overflow=${geo.overflowRight}px`);
+
+  // 手机端必须隐藏的两个"只对电脑有意义"的按钮（按钮不存在时跳过，例如当前没有后台任务）
+  if (geo.jobs) {
+    say('手机端已隐藏「后台任务」触发器', geo.jobs.display === 'none' && !geo.jobs.visible,
+      `display=${geo.jobs.display} visible=${geo.jobs.visible} label=${geo.jobs.label}`);
+  } else {
+    skip('手机端隐藏「后台任务」触发器', '当前会话没有后台任务，按钮未渲染');
+  }
+  if (geo.fileOpen) {
+    say('手机端已隐藏「用文件资源管理器打开」按钮', geo.fileOpen.display === 'none' && !geo.fileOpen.visible,
+      `display=${geo.fileOpen.display} visible=${geo.fileOpen.visible} label=${geo.fileOpen.label}`);
+    // 只藏按钮本体是不够的：这一组还带 1px 分隔线，必须整组消失，否则头部残留一条竖线
+    say('该按钮所在整组已消失（不残留 1px 分隔竖线）',
+      geo.leftoverDividers === 0, `残留分隔线 ${geo.leftoverDividers} 条`);
+  } else {
+    skip('手机端隐藏「用文件资源管理器打开」按钮', '当前没有可打开的工作区路径，按钮未渲染');
+  }
 }
 
 await page.screenshot({ path: path.join(SHOTS, 'mobile-433.png') });
@@ -168,6 +218,17 @@ if (!desktop.found) {
   say('电脑端仍是宿主两行原样（头部 ≥ 60px 且标签行不在第一行）',
     desktop.header.h >= 60 && desktop.tabsRow !== '1',
     `h=${desktop.header.h} row=${desktop.tabsRow} cols=${desktop.headerCols}`);
+  // 红线之二：这两个按钮在电脑端必须还在（隐藏只针对手机端）
+  if (desktop.jobs) {
+    say('电脑端「后台任务」按钮未被隐藏', desktop.jobs.display !== 'none', `display=${desktop.jobs.display}`);
+  } else {
+    skip('电脑端「后台任务」按钮未被隐藏', '桌面宽度下该按钮未渲染');
+  }
+  if (desktop.fileOpen) {
+    say('电脑端「用文件资源管理器打开」按钮未被隐藏', desktop.fileOpen.display !== 'none', `display=${desktop.fileOpen.display}`);
+  } else {
+    skip('电脑端「用文件资源管理器打开」按钮未被隐藏', '桌面宽度下该按钮未渲染');
+  }
 }
 await page.screenshot({ path: path.join(SHOTS, 'desktop-1280.png') });
 
