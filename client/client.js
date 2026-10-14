@@ -7530,6 +7530,49 @@ function setupIosKeyboardAdapter() {
     }
   });
 }
+function setupEffortAnchor() {
+  if (typeof window === "undefined" || typeof document === "undefined") return;
+  if (typeof requestAnimationFrame !== "function") return;
+  let raf = 0;
+  const sync = () => {
+    raf = 0;
+    if (window.innerWidth > MOBILE_MAX_WIDTH) return;
+    const btn = document.querySelector(".dsh-claude-effort-btn");
+    const model = document.querySelector(".dsh-claude-model-btn");
+    if (!btn || !model) return;
+    if (getComputedStyle(btn).position !== "fixed") {
+      if (btn.style.transform) btn.style.transform = "";
+      const stale = document.querySelector(".dsh-claude-effort-popover");
+      if (stale && stale.style.transform) stale.style.transform = "";
+      return;
+    }
+    if (btn.style.transform) btn.style.transform = "";
+    const pop = document.querySelector(".dsh-claude-effort-popover");
+    if (pop && pop.style.transform) pop.style.transform = "";
+    const b = btn.getBoundingClientRect();
+    const m = model.getBoundingClientRect();
+    if (!b.width || !b.height || !m.width || !m.height) return;
+    const dx = Math.round(m.right + 2 - b.left);
+    const dy = Math.round(m.top + (m.height - b.height) / 2 - b.top);
+    if (!dx && !dy) return;
+    const shift = `translate(${dx}px, ${dy}px)`;
+    btn.style.transform = shift;
+    if (pop) pop.style.transform = shift;
+  };
+  const schedule = () => {
+    if (!raf) raf = requestAnimationFrame(sync);
+  };
+  window.addEventListener("resize", schedule, { passive: true });
+  window.addEventListener("orientationchange", schedule, { passive: true });
+  window.addEventListener("scroll", schedule, { passive: true, capture: true });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", schedule);
+    window.visualViewport.addEventListener("scroll", schedule);
+  }
+  document.addEventListener("focusin", schedule, true);
+  document.addEventListener("focusout", schedule, true);
+  schedule();
+}
 function setupComposerCollapse() {
   if (typeof window === "undefined" || typeof document === "undefined" || typeof MutationObserver === "undefined") return;
   if (window.innerWidth > MOBILE_MAX_WIDTH) return;
@@ -7692,6 +7735,7 @@ function apply(ctx) {
   window.__dshOpenRemoteWorkspaceModal = (onAdded, onPickDirect, onCancel) => showRemoteWorkspaceDialog(rpcCall, onAdded, ctx, onPickDirect, onCancel);
   if (pageTweaksOn) {
     setupIosKeyboardAdapter();
+    setupEffortAnchor();
     setupComposerCollapse();
     setupMobileExperience(rpcCall, ctx);
   }

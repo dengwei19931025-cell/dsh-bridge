@@ -76,6 +76,74 @@ for (const w of [320, 390, 430]) {
   if (!insideCard) failList.push(`${w}px 强度按钮出了卡片 ${g.effort.r - g.card.r}px`);
 }
 
+// 「思考强度」补偿：该按钮是皮肤画的 body 下 position:fixed 元素（不在行内 DOM 里），
+// iOS 键盘弹起时坐标系不同步会让它留在旧坐标上浮到消息区。这里模拟该漂移，验证被贴回。
+const effortProbe = () => page.evaluate(() => {
+  const btn = document.querySelector('.dsh-claude-effort-btn');
+  const model = document.querySelector('.dsh-claude-model-btn');
+  const pop = document.querySelector('.dsh-claude-effort-popover');
+  if (!btn || !model) return null;
+  const b = btn.getBoundingClientRect();
+  const m = model.getBoundingClientRect();
+  return {
+    dx: Math.round(m.right + 2 - b.left),
+    dy: Math.round(m.top + (m.height - b.height) / 2 - b.top),
+    btnTransform: btn.style.transform || '',
+    popTransform: pop ? (pop.style.transform || '') : '',
+    isFixed: getComputedStyle(btn).position === 'fixed',
+    parentIsBody: btn.parentElement === document.body,
+  };
+});
+const pokeViewport = async () => {
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event('resize'));
+    window.visualViewport?.dispatchEvent(new Event('resize'));
+  });
+  await sleep(400);
+};
+
+await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+await sleep(900);
+const healthy = await effortProbe();
+if (!healthy) {
+  say('思考强度按钮可定位（用于键盘漂移补偿验证）', false, '未找到 .dsh-claude-effort-btn');
+} else {
+  say('思考强度按钮确实是皮肤画的 body 下 fixed 元素（补偿的前提）', healthy.isFixed && healthy.parentIsBody,
+    `position:fixed=${healthy.isFixed} parentIsBody=${healthy.parentIsBody}`);
+  say('健康态：坐标系未漂移时不加任何 transform', healthy.dx === 0 && healthy.dy === 0
+    && healthy.btnTransform === '' && healthy.popTransform === '',
+    `dx=${healthy.dx} dy=${healthy.dy} btn.transform="${healthy.btnTransform}" pop.transform="${healthy.popTransform}"`);
+
+  // 模拟 iOS 键盘弹起后的坐标系不同步：left +420、top −660
+  await page.evaluate(() => {
+    const btn = document.querySelector('.dsh-claude-effort-btn');
+    btn.style.left = `${Math.round((parseFloat(btn.style.left) || 0) + 420)}px`;
+    btn.style.top = `${Math.round((parseFloat(btn.style.top) || 0) - 660)}px`;
+  });
+  await sleep(250);
+  const drifted = await effortProbe();
+  say('模拟漂移后：按钮确实离开了模型按钮（复现 iOS 症状）', Math.abs(drifted.dx) > 100 || Math.abs(drifted.dy) > 100,
+    `dx=${drifted.dx} dy=${drifted.dy}`);
+  await pokeViewport();
+  const fixedBack = await effortProbe();
+  say('触发视口事件后：被贴回模型按钮右侧（dx/dy ≈ 0）', fixedBack.dx === 0 && fixedBack.dy === 0,
+    `dx=${fixedBack.dx} dy=${fixedBack.dy} transform="${fixedBack.btnTransform}"`);
+  say('补偿是通过 transform 施加的（没有改皮肤的 left/top/position）', fixedBack.btnTransform.startsWith('translate('),
+    `transform="${fixedBack.btnTransform}"`);
+
+  // 漂移消失（皮肤自己修正）：补偿必须完全退回，不能残留
+  await page.evaluate(() => {
+    const btn = document.querySelector('.dsh-claude-effort-btn');
+    btn.style.left = `${Math.round((parseFloat(btn.style.left) || 0) - 420)}px`;
+    btn.style.top = `${Math.round((parseFloat(btn.style.top) || 0) + 660)}px`;
+  });
+  await pokeViewport();
+  const cleaned = await effortProbe();
+  say('漂移消失后：按钮与浮层的补偿都清干净（无残留）',
+    cleaned.btnTransform === '' && cleaned.popTransform === '' && cleaned.dx === 0 && cleaned.dy === 0,
+    `btn.transform="${cleaned.btnTransform}" pop.transform="${cleaned.popTransform}" dx=${cleaned.dx} dy=${cleaned.dy}`);
+}
+
 // 电脑端红线
 await page.setViewport({ width: 1280, height: 800, deviceScaleFactor: 1 });
 await sleep(900);
@@ -83,6 +151,11 @@ const desktop = await probe();
 say('电脑端：我们的移动端规则不生效（trailing 不强制 max-content、modes 不横滑）',
   desktop.trailingMaxWidth !== 'max-content' && desktop.modesOverflowX !== 'auto',
   `trailing.min-width=${desktop.trailingMaxWidth} modes.overflow-x=${desktop.modesOverflowX}`);
+const desktopEffort = await effortProbe();
+if (desktopEffort) {
+  say('电脑端：不做键盘漂移补偿（移动端专属）', desktopEffort.btnTransform === '',
+    `transform="${desktopEffort.btnTransform}"`);
+}
 
 console.log(`\n${SUITE_RESULT_PREFIX} label=手机端输入卡片底部工具行 pass=${pass} skip=0 fail=${fail}`);
 if (failList.length) console.log(`失败项：\n  - ${failList.join('\n  - ')}`);

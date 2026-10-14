@@ -32,6 +32,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (f) => readFileSync(resolve(repoRoot, f), 'utf8');
 
 const source = read('client/mobile-styles.js');
+const clientIndex = read('client/index.js');   // 补偿函数在这里（client/index.js）
 const rawBundle = read('client/client.js');
 const cssNoComment = MOBILE_STYLES_CSS.replace(/\/\*[\s\S]*?\*\//g, '');
 
@@ -100,4 +101,50 @@ test('产物同步：client.js 里必须带上该修正（否则跑 npm run buil
   assert.ok(rawBundle.includes('min-width:max-content'), '产物缺少右侧不收缩的修正，请重新构建');
   // 不硬编码宿主哈希
   assert.doesNotMatch(source, new RegExp(composerHash + '_trailing'), '不得硬编码宿主哈希，必须走占位符');
+});
+
+// ── 「思考强度」是皮肤画的 fixed 元素，不在行内：必须补偿 iOS 键盘造成的坐标漂移 ──────────
+//
+// 实测事实（本文件顶部说明的延伸）：
+//   .dsh-claude-effort-btn 挂在 <body> 下、position:fixed，
+//   行内样式形如 left:289px; top:771px —— 由皮肤 JS 从模型按钮的 getBoundingClientRect() 算出，
+//   并给模型按钮设 margin-right 来"占位"。键盘弹起时 iOS 的 fixed 参照系与 rect 坐标系不同步，
+//   皮肤算出的坐标失效 → 实测按钮浮到消息区中间（用户 iOS 截图）。
+test('存在 setupEffortAnchor，且已在插件入口调用', () => {
+  assert.match(clientIndex, /function setupEffortAnchor\(\)/, '必须实现 setupEffortAnchor');
+  assert.match(clientIndex, /setupEffortAnchor\(\);/, '必须在插件入口调用它（与 setupIosKeyboardAdapter 同处）');
+  assert.ok(rawBundle.includes('dsh-claude-effort-btn'), '产物里必须带上该补偿，请重新构建');
+});
+
+test('补偿只加 transform，绝不改皮肤的定位属性（否则就是"改皮肤"了）', () => {
+  const body = clientIndex.match(/function setupEffortAnchor\(\)[\s\S]*?\n\}\n/);
+  assert.ok(body, '必须能定位到 setupEffortAnchor 函数体');
+  assert.match(body[0], /btn\.style\.transform = /, '只允许设置 transform');
+  for (const forbidden of ['btn.style.left', 'btn.style.top', 'btn.style.position', 'btn.style.marginRight',
+    'model.style.marginRight', 'removeChild', 'appendChild', 'insertBefore']) {
+    assert.ok(!body[0].includes(forbidden),
+      `不得动 ${forbidden}：皮肤自己负责 left/top/占位 margin，我们只做视觉补偿`);
+  }
+});
+
+test('补偿的安全阀：非 fixed 实现不插手、坐标系健康时不加 transform、清掉旧补偿再测量', () => {
+  const body = clientIndex.match(/function setupEffortAnchor\(\)[\s\S]*?\n\}\n/)[0];
+  assert.match(body, /getComputedStyle\(btn\)\.position !== 'fixed'/,
+    '必须探测皮肤是否仍是 fixed 实现：换了实现就不插手');
+  assert.match(body, /if \(!dx && !dy\) return;/, '坐标系没漂移时必须直接返回（健康路径零影响）');
+  assert.match(body, /if \(btn\.style\.transform\) btn\.style\.transform = '';/,
+    '测量前必须清掉上次补偿，否则会自我累积（drift 越补越大）');
+  assert.match(body, /if \(pop && pop\.style\.transform\) pop\.style\.transform = '';/,
+    '浮层的旧补偿也要清：漂移消失后残留 transform 会让浮层错位');
+  assert.ok(body.includes("window.innerWidth > MOBILE_MAX_WIDTH"), '必须只在手机端生效');
+});
+
+test('补偿的触发时机覆盖 iOS 键盘：visualViewport 的 resize/scroll + 焦点变化', () => {
+  const body = clientIndex.match(/function setupEffortAnchor\(\)[\s\S]*?\n\}\n/)[0];
+  assert.match(body, /visualViewport\.addEventListener\('resize'/, '必须监听 visualViewport resize（键盘弹起/收起）');
+  assert.match(body, /visualViewport\.addEventListener\('scroll'/, '必须监听 visualViewport scroll（iOS 会二次滚动）');
+  assert.match(body, /addEventListener\('focusin', schedule, true\)/, '必须监听 focusin');
+  assert.match(body, /addEventListener\('focusout', schedule, true\)/, '必须监听 focusout');
+  assert.match(body, /addEventListener\('scroll', schedule, \{ passive: true, capture: true \}\)/,
+    '滚动必须用捕获：输入区在宿主的滚动容器里，事件不冒泡到 window');
 });

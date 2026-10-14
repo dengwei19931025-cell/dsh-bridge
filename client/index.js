@@ -5106,6 +5106,69 @@ function setupIosKeyboardAdapter() {
   });
 }
 
+// 把皮肤的「思考强度」按钮贴回模型按钮右侧（移动端）。
+//
+// 背景（用户在 iOS 上报："打开键盘后思考强度 High 跑到外面去了"）：
+// 皮肤 dsh-claude-style 把 .dsh-claude-effort-btn 做成**挂在 body 下的 position:fixed 元素**，
+// 坐标由它的 JS 从模型按钮的 getBoundingClientRect() 算出（left = 模型右缘 + 2，
+// top = 垂直居中），并靠给模型按钮设 margin-right 来"占位"——所以那个按钮**根本不在
+// 底部工具行的 DOM 里**，只是被摆成了行内的样子。
+// 键盘弹起时 iOS 的 fixed 参照系与 rect 坐标系不同步（本文件的键盘适配器还会把滚动容器
+// 高度钉死，位移更大），皮肤算出的坐标随之失效 —— 实测按钮留在旧坐标上、浮到消息区中间。
+//
+// 做法：**不改皮肤任何属性**，只在视口/滚动/焦点变化后用同一坐标系下的实测差，给按钮
+// 加一次性 transform 补偿（模型按钮右缘 − 按钮实测左缘、垂直居中差）。坐标系没漂移时
+// 两个差值都是 0，我们不加任何 transform —— 健康路径零影响。
+// 开着的强度浮层（同样是 position:fixed）承受同一个坐标系误差，用同一个差值一起补偿。
+function setupEffortAnchor() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+  if (typeof requestAnimationFrame !== 'function') return;
+
+  let raf = 0;
+  const sync = () => {
+    raf = 0;
+    if (window.innerWidth > MOBILE_MAX_WIDTH) return;
+    const btn = document.querySelector('.dsh-claude-effort-btn');
+    const model = document.querySelector('.dsh-claude-model-btn');
+    if (!btn || !model) return;
+    // 皮肤换了实现（不再是 body 下的 fixed 元素）就不插手
+    if (getComputedStyle(btn).position !== 'fixed') {
+      if (btn.style.transform) btn.style.transform = '';
+      const stale = document.querySelector('.dsh-claude-effort-popover');
+      if (stale && stale.style.transform) stale.style.transform = '';
+      return;
+    }
+    // 必须先清掉上次的补偿（按钮与浮层都要清，否则漂移消失后会残留旧位移），
+    // 才量得到皮肤此刻给的真实渲染位置
+    if (btn.style.transform) btn.style.transform = '';
+    const pop = document.querySelector('.dsh-claude-effort-popover');
+    if (pop && pop.style.transform) pop.style.transform = '';
+    const b = btn.getBoundingClientRect();
+    const m = model.getBoundingClientRect();
+    if (!b.width || !b.height || !m.width || !m.height) return;
+    const dx = Math.round(m.right + 2 - b.left);
+    const dy = Math.round(m.top + (m.height - b.height) / 2 - b.top);
+    if (!dx && !dy) return;   // 健康路径：不动
+    const shift = `translate(${dx}px, ${dy}px)`;
+    btn.style.transform = shift;
+    if (pop) pop.style.transform = shift;   // 同一个坐标系误差，一起补偿
+  };
+  const schedule = () => { if (!raf) raf = requestAnimationFrame(sync); };
+
+  window.addEventListener('resize', schedule, { passive: true });
+  window.addEventListener('orientationchange', schedule, { passive: true });
+  // 滚动用捕获：输入区在宿主的滚动容器里，事件不冒泡到 window
+  window.addEventListener('scroll', schedule, { passive: true, capture: true });
+  if (window.visualViewport) {
+    // iOS 键盘弹起/收起过程会连续触发这两个事件 —— 正是不同步发生的时候
+    window.visualViewport.addEventListener('resize', schedule);
+    window.visualViewport.addEventListener('scroll', schedule);
+  }
+  document.addEventListener('focusin', schedule, true);
+  document.addEventListener('focusout', schedule, true);
+  schedule();
+}
+
 // 移动端输入框折叠/展开（body.dsh-composer-collapsed）。
 // 底部输入区（composer）占用 ~116px，顶部菜单 + header 又占 ~120px，屏幕有限时
 // 中间消息可视区很小。折叠后 composer 隐藏、消息 viewArea 自动伸展全高，阅读区显著增大。
@@ -5286,6 +5349,7 @@ function apply(ctx) {
 
   if (pageTweaksOn) {
     setupIosKeyboardAdapter();
+    setupEffortAnchor();
     setupComposerCollapse();
 
     setupMobileExperience(rpcCall, ctx);
