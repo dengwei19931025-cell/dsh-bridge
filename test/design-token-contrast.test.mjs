@@ -144,7 +144,9 @@ test('对比度：纯色底按钮（保存成功态 / 升级重开按钮）在�
 });
 
 test('调用点：修复后的配色确实进了源码与产物', () => {
-  assert.match(indexSource, /background: '#047857'/, '保存成功态应改为 #047857 + 白字');
+  // 注：#047857 现在只出现在「保存成功」这类状态分支里（面板上原「一键升级」按钮已随
+  // 远端更新功能移除，那处字面量不再存在），故断言按现存调用点的写法匹配。
+  assert.match(indexSource, /background: saveSuccess \? '#047857'/, '保存成功态应改为 #047857 + 白字');
   assert.match(indexSource, /background: '#4560ea'/, '蓝底按钮应改为 #4560ea（4.28 → 5.10:1）');
   assert.match(indexSource, /color: saveSuccess \? '#ffffff'/, '成功态必须固定白字，不能继承主题前景令牌');
   // 产物同步

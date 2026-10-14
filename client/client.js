@@ -2267,9 +2267,8 @@ var BRIDGE_ENDPOINTS = {
   saveCustomTunnelConfig: "saveCustomTunnelConfig",
   saveExternalTunnel: "saveExternalTunnel",
   setLanIp: "setLanIp",
-  checkVersion: "checkVersion",
-  upgradePlugin: "upgradePlugin",
-  upgradeDsh: "upgradeDsh",
+  // 注：本插件不提供远端更新（原 checkVersion / upgradePlugin / upgradeDsh 已移除）；
+  // 本地版本由 getStatus 的 version / dshVersion 字段提供。
   restartDsh: "restartDsh",
   exportBackup: "exportBackup",
   importBackup: "importBackup",
@@ -2451,29 +2450,8 @@ var ISSUES_URL = "https://github.com/wenbin-wb/dsh-bridge/issues/new";
 var TUNNEL_DOCS_URL = "https://github.com/wenbin-wb/dsh-bridge/blob/main/docs/custom-tunnel.md";
 var CLOUDFLARE_TUTORIAL_URL = "https://github.com/wenbin-wb/dsh-bridge/blob/main/docs/cloudflare-fixed-domain.md";
 var localeT = (key) => key;
-function upgradeCommands(latest) {
-  const spec = `@wenbin_wb/dsh-bridge@${latest}`;
-  return [
-    { id: "dsh", cmd: `dsh plugin --profile web add ${spec}` },
-    { id: "npx", cmd: `npx --yes @deepseek-ai/dsh plugin --profile web add ${spec}` }
-  ];
-}
 var name = "dsh-bridge";
 var inject = ["slots", "connection", "workspaces", "sessions"];
-function semverGt(a, b) {
-  const parse = (v) => {
-    const [main = "", pre = ""] = String(v).split("-");
-    const [maj = 0, min = 0, pat = 0] = main.split(".").map(Number);
-    return { maj, min, pat, pre };
-  };
-  const av = parse(a), bv = parse(b);
-  if (av.maj !== bv.maj) return av.maj > bv.maj;
-  if (av.min !== bv.min) return av.min > bv.min;
-  if (av.pat !== bv.pat) return av.pat > bv.pat;
-  if (!av.pre && bv.pre) return true;
-  if (av.pre && !bv.pre) return false;
-  return av.pre > bv.pre;
-}
 var s = {
   card: { background: "var(--dsw-alias-bg-layer-2,#f9fafb)", border: "1px solid var(--dsw-alias-border-l2,#e5e7eb)", borderRadius: 12, padding: "16px 18px", marginBottom: 16, boxSizing: "border-box" },
   block: { borderTop: "1px solid var(--dsw-alias-border-l2,#e5e7eb)", marginTop: 12, paddingTop: 12 },
@@ -2558,32 +2536,6 @@ var Icons = {
     React.createElement("path", { d: "M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" })
   )
 };
-function useCopy() {
-  const [copied, setCopied] = React.useState(false);
-  const copy = React.useCallback((text) => {
-    const done = () => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2e3);
-    };
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy());
-    } else {
-      fallbackCopy();
-    }
-    function fallbackCopy() {
-      const textarea = document.createElement("textarea");
-      textarea.value = text;
-      textarea.style.position = "fixed";
-      textarea.style.opacity = "0";
-      document.body.appendChild(textarea);
-      textarea.select();
-      const success = document.execCommand("copy");
-      document.body.removeChild(textarea);
-      if (success) done();
-    }
-  }, []);
-  return [copied, copy];
-}
 function StatusTag({ running, status }) {
   let bg = "var(--dsw-alias-bg-layer-2,#f3f4f6)";
   let color = "var(--dsw-alias-label-secondary,#6b7280)";
@@ -5191,7 +5143,7 @@ function useDshRestart({ rpcCall, maxAttempts = 30, texts = {} } = {}) {
     pollRef.current = setInterval(async () => {
       attempts++;
       try {
-        const r = await rpcCall(BRIDGE_ENDPOINTS.checkVersion, {});
+        const r = await rpcCall(BRIDGE_ENDPOINTS.getStatus, {});
         if (r?.ok) {
           clearInterval(pollRef.current);
           pollRef.current = null;
@@ -5397,93 +5349,23 @@ function RemoteWorkspaceCard({ rpcCall }) {
     }, loading ? "\u6B63\u5728\u8BFB\u53D6\u5DE5\u4F5C\u533A\u5217\u8868\u2026" : "\u6682\u65E0\u5DF2\u6CE8\u518C\u5DE5\u4F5C\u533A\uFF0C\u70B9\u51FB\u53F3\u4E0A\u89D2\u300C+ \u8FDC\u7A0B\u6DFB\u52A0\u5DE5\u4F5C\u533A\u300D\u5373\u53EF\u6D4F\u89C8\u6DFB\u52A0\u3002")
   );
 }
-function UpgradeCommandRow({ cmd }) {
-  const [copied, copy] = useCopy();
-  return React.createElement(
-    "div",
-    { style: { display: "flex", gap: 6, alignItems: "center" } },
-    React.createElement("code", {
-      style: { ...s.code, flex: "1 1 auto", fontSize: 12, lineHeight: 1.5, wordBreak: "break-all" }
-    }, cmd),
-    React.createElement("button", {
-      style: { ...s.btnGhost, height: 26, padding: "0 10px", fontSize: 11, flex: "0 0 auto" },
-      onClick: () => copy(cmd)
-    }, copied ? "\u2713 \u5DF2\u590D\u5236" : "\u590D\u5236")
-  );
-}
-function VersionBanner({ rpcCall }) {
-  const [info, setInfo] = React.useState(null);
-  const [loading, setLoading] = React.useState(false);
-  const [upgrading, setUpgrading] = React.useState(false);
-  const [upgradeResult, setUpgradeResult] = React.useState(null);
-  const [showManual, setShowManual] = React.useState(false);
-  const [dismissRestart, setDismissRestart] = React.useState(false);
-  const { restarting, status: restartStatus, startRestart: handleRestart, resetStatus: resetRestartStatus } = useDshRestart({
-    rpcCall,
-    texts: {
-      restarting: "\u6B63\u5728\u8C03\u5EA6 DSH \u670D\u52A1\u91CD\u542F\u2026",
-      success: "\u{1F389} \u91CD\u542F\u6210\u529F\uFF01\u5DF2\u81EA\u52A8\u52A0\u8F7D\u6700\u65B0\u7248\u672C\u3002\u6B63\u5728\u5237\u65B0\u9875\u9762\u2026"
-    }
-  });
-  const check = React.useCallback(async () => {
-    setLoading(true);
-    try {
-      const r = await rpcCall(BRIDGE_ENDPOINTS.checkVersion, {});
-      if (r?.ok) setInfo(r.value);
-    } catch {
-    } finally {
-      setLoading(false);
-    }
-  }, [rpcCall]);
+function LocalVersionRow({ rpcCall }) {
+  const [versions, setVersions] = React.useState(null);
   React.useEffect(() => {
-    check();
-  }, [check]);
-  const hasUpdate = info?.latest && info?.current && !info.error && semverGt(info.latest, info.current);
-  const isLatest = info?.latest && info?.current && !info.error && !semverGt(info.latest, info.current);
-  const dshHasUpdate = !!(info?.dshLatest && info?.dshVersion && !info.error && semverGt(info.dshLatest, info.dshVersion));
-  const handleUpgrade = React.useCallback(async () => {
-    if (!info?.latest || upgrading) return;
-    setUpgrading(true);
-    setUpgradeResult(null);
-    setDismissRestart(false);
-    resetRestartStatus();
-    try {
-      const r = await rpcCall(BRIDGE_ENDPOINTS.upgradePlugin, { version: info.latest });
-      if (r?.ok && r.value?.ok) {
-        setUpgradeResult({ ok: true, message: `\u5DF2\u6210\u529F\u5347\u7EA7\u5230 v${info.latest}\uFF01` });
-      } else {
-        setUpgradeResult({ ok: false, message: r?.value?.error || r?.error?.message || "\u5347\u7EA7\u5931\u8D25" });
-        setShowManual(true);
+    let alive = true;
+    (async () => {
+      try {
+        const r = await rpcCall(BRIDGE_ENDPOINTS.getStatus, {});
+        if (alive && r?.ok) {
+          setVersions({ version: r.value?.version ?? null, dshVersion: r.value?.dshVersion ?? null });
+        }
+      } catch {
       }
-    } catch (e) {
-      setUpgradeResult({ ok: false, message: e.message || "\u5347\u7EA7\u8BF7\u6C42\u5931\u8D25" });
-      setShowManual(true);
-    } finally {
-      setUpgrading(false);
-    }
-  }, [info?.latest, upgrading, rpcCall]);
-  const [dshUpgrading, setDshUpgrading] = React.useState(false);
-  const [dshUpgradeResult, setDshUpgradeResult] = React.useState(null);
-  const handleUpgradeDsh = React.useCallback(async () => {
-    if (!info?.dshLatest || dshUpgrading) return;
-    setDshUpgrading(true);
-    setDshUpgradeResult(null);
-    setDismissRestart(false);
-    resetRestartStatus();
-    try {
-      const r = await rpcCall(BRIDGE_ENDPOINTS.upgradeDsh, { version: info.dshLatest });
-      if (r?.ok && r.value?.ok) {
-        setDshUpgradeResult({ ok: true, message: `DSH \u5DF2\u6210\u529F\u5347\u7EA7\u5230 v${info.dshLatest}\uFF01` });
-      } else {
-        const msg = r?.value?.error || r?.error?.message || "\u5347\u7EA7\u5931\u8D25";
-        setDshUpgradeResult({ ok: false, message: msg, manual: true });
-      }
-    } catch (e) {
-      setDshUpgradeResult({ ok: false, message: e.message || "\u5347\u7EA7\u8BF7\u6C42\u5931\u8D25", manual: true });
-    } finally {
-      setDshUpgrading(false);
-    }
-  }, [info?.dshLatest, dshUpgrading, rpcCall]);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [rpcCall]);
   const links = React.createElement(
     "div",
     { style: { display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" } },
@@ -5509,368 +5391,30 @@ function VersionBanner({ rpcCall }) {
   return React.createElement(
     "div",
     { style: { marginBottom: 16 } },
-    // 顶部状态行：版本徽标 + 刷新按钮 + 链接组
     React.createElement(
       "div",
       {
-        style: {
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: 8
-        }
+        style: { display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }
       },
-      // 左组：版本徽标 + DSH 版本 + 检查更新。
-      // flexWrap + minWidth:0 是必需的：此前只写 display:flex，左组既不能收缩也不能换行，
-      // 会把整行顶到 305px；手机设置页内容列只有 277px，溢出部分被
-      // overflow-x:hidden 静默裁掉（「检查更新」按钮被切一半）。
+      // 左组：版本徽标 + DSH 版本。flexWrap + minWidth:0 是必需的：只写 display:flex 时
+      // 左组既不能收缩也不能换行，会把整行顶宽、在手机设置页被 overflow-x:hidden 静默裁掉。
       React.createElement(
         "div",
         { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", minWidth: 0 } },
-        // 版本状态徽标
         React.createElement(
           "span",
-          {
-            style: {
-              ...s.tag,
-              background: hasUpdate ? "var(--dsw-alias-state-info-bg,#eff6ff)" : isLatest ? "var(--dsw-alias-state-success-bg,#ecfdf5)" : "var(--dsw-alias-bg-layer-2,#f3f4f6)",
-              color: hasUpdate || isLatest ? "var(--dsw-alias-label-primary, #0f1115)" : "var(--dsw-alias-label-secondary,#6b7280)",
-              padding: "3px 10px",
-              fontSize: 12,
-              fontWeight: 500,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 5
-            }
-          },
-          loading ? React.createElement("span", {
-            style: { display: "inline-flex", alignItems: "center" }
-          }, React.createElement(Icons.refresh)) : isLatest ? React.createElement(Icons.check) : null,
-          info ? `v${info.current}` : "\u7248\u672C\u68C0\u67E5\u4E2D\u2026",
-          isLatest && React.createElement("span", { style: { opacity: 0.85, fontSize: 11, fontWeight: 400 } }, "\xB7 \u5DF2\u662F\u6700\u65B0"),
-          hasUpdate && React.createElement("span", { style: { fontWeight: 600, fontSize: 11 } }, `\u2794 v${info.latest}`),
-          info?.error && React.createElement("span", { style: { color: "var(--dsw-alias-label-primary, #0f1115)", fontSize: 11 } }, "(\u7F51\u7EDC\u8D85\u65F6)")
+          { style: s.tag },
+          versions?.version ? `v${versions.version}` : "v\u2026"
         ),
-        // DSH 宿主版本标签（有新版时黄色高亮）
-        info?.dshVersion && React.createElement(
-          "span",
-          {
-            style: {
-              ...s.tag,
-              background: dshHasUpdate ? "var(--dsw-alias-state-warn-bg,#fffbeb)" : "var(--dsw-alias-bg-layer-2,#f3f4f6)",
-              color: dshHasUpdate ? "var(--dsw-alias-label-primary, #0f1115)" : "var(--dsw-alias-label-tertiary,#6b7280)",
-              padding: "3px 10px",
-              fontSize: 12,
-              fontWeight: 500,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 5
-            },
-            title: dshHasUpdate ? `\u53D1\u73B0 DSH \u65B0\u7248\u672C v${info.dshLatest}` : void 0
-          },
-          React.createElement("span", { style: { opacity: 0.75, fontSize: 11, fontWeight: 400 } }, "DSH"),
-          `v${info.dshVersion}`,
-          dshHasUpdate && React.createElement("span", { style: { fontWeight: 600, fontSize: 11 } }, `\u2794 v${info.dshLatest}`)
-        ),
-        // 刷新检查按钮
-        React.createElement(
-          "button",
-          {
-            style: {
-              ...s.btnGhost,
-              height: 24,
-              padding: "0 8px",
-              fontSize: 11,
-              opacity: loading ? 0.5 : 1,
-              gap: 4,
-              // 按钮是 inline-flex，文字会成为匿名 flex 项；被挤窄时会把「检查更新」
-              // 折成两行。nowrap + flexShrink:0 保证它整体换行（由父级 flexWrap 负责）。
-              whiteSpace: "nowrap",
-              flexShrink: 0
-            },
-            onClick: check,
-            disabled: loading || upgrading || restarting,
-            title: "\u91CD\u65B0\u68C0\u67E5 npm \u7EBF\u4E0A\u7248\u672C"
-          },
-          React.createElement(Icons.refresh),
-          loading ? "\u68C0\u67E5\u4E2D\u2026" : "\u68C0\u67E5\u66F4\u65B0"
-        )
+        versions?.dshVersion && React.createElement("span", {
+          style: { ...s.muted, fontSize: 11 }
+        }, `DSH ${versions.dshVersion}`),
+        React.createElement("span", {
+          style: { ...s.muted, fontSize: 11 },
+          title: "\u672C\u63D2\u4EF6\u4E0D\u63D0\u4F9B\u8FDC\u7AEF\u66F4\u65B0\uFF1A\u8FD9\u91CC\u53EA\u663E\u793A\u672C\u673A\u5F53\u524D\u4F7F\u7528\u7684\u7248\u672C"
+        }, "\xB7 \u672C\u5730\u7248\u672C")
       ),
       links
-    ),
-    // 发现新版本高亮卡片（支持一键直接升级）
-    hasUpdate && React.createElement(
-      "div",
-      {
-        style: {
-          ...s.card,
-          background: "var(--dsw-alias-state-info-bg,#eff6ff)",
-          border: "1px solid var(--dsw-alias-state-info-border,#bfdbfe)",
-          padding: "14px 16px",
-          marginTop: 10,
-          marginBottom: 0
-        }
-      },
-      React.createElement(
-        "div",
-        { style: { display: "flex", alignItems: "flex-start", gap: 12 } },
-        React.createElement("span", { style: { fontSize: 22 } }, "\u{1F680}"),
-        React.createElement(
-          "div",
-          { style: { flex: 1, minWidth: 0 } },
-          React.createElement(
-            "div",
-            { style: { display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 8 } },
-            React.createElement("div", {
-              style: {
-                fontSize: 13,
-                fontWeight: 600,
-                color: "var(--dsw-alias-label-primary, #0f1115)"
-              }
-            }, `\u53D1\u73B0\u65B0\u7248\u672C v${info.latest}\uFF08\u5F53\u524D v${info.current}\uFF09`),
-            React.createElement(
-              "button",
-              {
-                style: {
-                  ...s.btnPri,
-                  height: 28,
-                  fontSize: 12,
-                  padding: "0 14px",
-                  background: upgradeResult?.ok ? "#047857" : "var(--dsw-alias-brand-primary,#4f6ef7)",
-                  color: upgradeResult?.ok ? "#ffffff" : "var(--dsw-alias-label-primary-foreground, #fff)",
-                  opacity: upgrading || restarting ? 0.6 : 1
-                },
-                onClick: handleUpgrade,
-                disabled: upgrading || restarting || upgradeResult?.ok
-              },
-              upgrading ? React.createElement(
-                "span",
-                { style: { display: "inline-flex", alignItems: "center", gap: 6 } },
-                React.createElement("span", { style: { animation: "spin 1s linear infinite", display: "inline-flex" } }, React.createElement(Icons.refresh)),
-                "\u6B63\u5728\u81EA\u52A8\u5347\u7EA7\u2026"
-              ) : upgradeResult?.ok ? "\u2713 \u5347\u7EA7\u5B8C\u6210" : `\u4E00\u952E\u5347\u7EA7\u5230 v${info.latest}`
-            )
-          ),
-          // 简短更新内容 / Release Notes 亮点展示
-          info?.releaseNotes && React.createElement(
-            "div",
-            {
-              style: {
-                fontSize: 12,
-                color: "var(--dsw-alias-label-primary, #374151)",
-                background: "var(--dsw-alias-bg-layer-2, rgba(255, 255, 255, 0.85))",
-                border: "1px solid var(--dsw-alias-state-info-border, rgba(191, 219, 254, 0.8))",
-                borderRadius: 8,
-                padding: "8px 12px",
-                marginBottom: 10,
-                lineHeight: 1.6,
-                whiteSpace: "pre-line"
-              }
-            },
-            React.createElement("div", { style: { fontWeight: 600, color: "var(--dsw-alias-label-primary, #0f1115)", marginBottom: 2 } }, "\u2728 \u66F4\u65B0\u4EAE\u70B9\uFF1A"),
-            info.releaseNotes
-          ),
-          // 升级成功后：引导重启 DSH 操作卡片
-          upgradeResult?.ok && !dismissRestart && React.createElement(
-            "div",
-            {
-              style: {
-                background: "var(--dsw-alias-bg-layer-2, rgba(255, 255, 255, 0.95))",
-                border: "1px solid var(--dsw-alias-state-success-border, #a7f3d0)",
-                borderRadius: 8,
-                padding: "12px 14px",
-                marginBottom: 10
-              }
-            },
-            React.createElement(
-              "div",
-              { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 8 } },
-              React.createElement("span", { style: { fontSize: 16 } }, "\u2728"),
-              React.createElement("span", {
-                style: { fontSize: 13, fontWeight: 600, color: "var(--dsw-alias-label-primary, #0f1115)" }
-              }, `\u5DF2\u6210\u529F\u5347\u7EA7\u5230 v${info.latest}\uFF01\u9700\u8981\u91CD\u542F DSH \u670D\u52A1\u4F7F\u65B0\u7248\u672C\u751F\u6548`)
-            ),
-            !restarting && !restartStatus && React.createElement(
-              "div",
-              {
-                style: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }
-              },
-              React.createElement("button", {
-                style: {
-                  ...s.btnPri,
-                  height: 30,
-                  fontSize: 12,
-                  padding: "0 14px",
-                  background: "#047857",
-                  color: "#ffffff"
-                },
-                onClick: handleRestart
-              }, "\u{1F504} \u7ACB\u5373\u91CD\u542F DSH \u670D\u52A1"),
-              React.createElement("button", {
-                style: {
-                  ...s.btnGhost,
-                  height: 30,
-                  fontSize: 12,
-                  padding: "0 12px"
-                },
-                onClick: () => setDismissRestart(true)
-              }, "\u7A0D\u540E\u624B\u52A8\u91CD\u542F")
-            ),
-            (restarting || restartStatus) && React.createElement(
-              "div",
-              {
-                style: {
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  fontSize: 12,
-                  color: "var(--dsw-alias-label-primary, #0f1115)",
-                  fontWeight: 500
-                }
-              },
-              restartStatus?.phase !== "success" && restartStatus?.phase !== "timeout" && React.createElement("span", {
-                style: { animation: "spin 1s linear infinite", display: "inline-flex" }
-              }, React.createElement(Icons.refresh)),
-              restartStatus?.text || "\u6B63\u5728\u5904\u7406\u2026"
-            )
-          ),
-          // 失败提示
-          upgradeResult && !upgradeResult.ok && React.createElement("div", {
-            style: {
-              background: "var(--dsw-alias-state-error-bg,#fef2f2)",
-              border: "1px solid var(--dsw-alias-state-error-border,#fecaca)",
-              color: "var(--dsw-alias-label-primary, #0f1115)",
-              padding: "8px 12px",
-              borderRadius: 6,
-              fontSize: 12,
-              marginBottom: 8,
-              lineHeight: 1.5
-            }
-          }, upgradeResult.message),
-          React.createElement(
-            "div",
-            { style: { marginTop: 4 } },
-            React.createElement("button", {
-              style: { ...s.btnLink, fontSize: 11, color: "var(--dsw-alias-label-secondary,#6b7280)" },
-              onClick: () => setShowManual((v) => !v)
-            }, showManual ? "\u25B4 \u6298\u53E0\u624B\u52A8\u547D\u4EE4\u884C" : "\u25BE \u67E5\u770B\u624B\u52A8\u5347\u7EA7\u547D\u4EE4 (\u5982\u9700)")
-          ),
-          showManual && React.createElement(
-            "div",
-            {
-              style: { display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }
-            },
-            upgradeCommands(info.latest).map(
-              ({ id, cmd }) => React.createElement(UpgradeCommandRow, { key: id, cmd })
-            )
-          )
-        )
-      )
-    ),
-    // ── DSH 宿主有新版本时的提示 / 一键升级卡片 ──
-    dshHasUpdate && React.createElement(
-      "div",
-      {
-        style: {
-          ...s.card,
-          background: "var(--dsw-alias-state-warn-bg,#fffbeb)",
-          border: "1px solid var(--dsw-alias-state-warn-border,#fde68a)",
-          padding: "14px 16px",
-          marginTop: 10,
-          marginBottom: 0
-        }
-      },
-      React.createElement(
-        "div",
-        { style: { display: "flex", alignItems: "flex-start", gap: 12 } },
-        React.createElement("span", { style: { fontSize: 22 } }, "\u{1F6E0}\uFE0F"),
-        React.createElement(
-          "div",
-          { style: { flex: 1, minWidth: 0 } },
-          React.createElement(
-            "div",
-            { style: { display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8, marginBottom: 8 } },
-            React.createElement("div", {
-              style: { fontSize: 13, fontWeight: 600, color: "var(--dsw-alias-label-primary, #0f1115)" }
-            }, `DSH \u6709\u65B0\u7248\u672C v${info.dshLatest}\uFF08\u5F53\u524D v${info.dshVersion}\uFF09`),
-            info?.dshUpgradable ? React.createElement(
-              "button",
-              {
-                style: {
-                  ...s.btnPri,
-                  height: 28,
-                  fontSize: 12,
-                  padding: "0 14px",
-                  background: dshUpgradeResult?.ok ? "#047857" : "var(--dsw-alias-brand-primary,#4f6ef7)",
-                  color: dshUpgradeResult?.ok ? "#ffffff" : "var(--dsw-alias-label-primary-foreground, #fff)",
-                  opacity: dshUpgrading || restarting ? 0.6 : 1
-                },
-                onClick: handleUpgradeDsh,
-                disabled: dshUpgrading || restarting || dshUpgradeResult?.ok
-              },
-              dshUpgrading ? React.createElement(
-                "span",
-                { style: { display: "inline-flex", alignItems: "center", gap: 6 } },
-                React.createElement("span", { style: { animation: "spin 1s linear infinite", display: "inline-flex" } }, React.createElement(Icons.refresh)),
-                "\u6B63\u5728\u5347\u7EA7 DSH\u2026"
-              ) : dshUpgradeResult?.ok ? "\u2713 DSH \u5347\u7EA7\u5B8C\u6210" : `\u4E00\u952E\u5347\u7EA7 DSH \u5230 v${info.dshLatest}`
-            ) : React.createElement("a", {
-              href: GITHUB_URL,
-              target: "_blank",
-              rel: "noreferrer",
-              style: { ...s.btnLink, fontSize: 12, fontWeight: 600 }
-            }, "\u67E5\u770B\u5B98\u65B9\u5347\u7EA7\u65B9\u5F0F \u2197")
-          ),
-          React.createElement(
-            "div",
-            {
-              style: { fontSize: 12, color: "var(--dsw-alias-label-secondary,#6b7280)", lineHeight: 1.6 }
-            },
-            info?.dshUpgradable ? "\u5347\u7EA7 DSH \u547D\u4EE4\u884C\u5DE5\u5177\u540E\u9700\u91CD\u542F DSH \u670D\u52A1\u751F\u6548\u3002" : info?.dshUpgradeReason || "\u5F53\u524D DSH \u975E npm \u5168\u5C40\u5B89\u88C5\uFF0C\u65E0\u6CD5\u4E00\u952E\u81EA\u52A8\u5347\u7EA7\uFF0C\u8BF7\u6309\u5B98\u65B9\u6E20\u9053\u624B\u52A8\u66F4\u65B0\u3002"
-          ),
-          dshUpgradeResult && React.createElement("div", {
-            style: {
-              marginTop: 10,
-              fontSize: 12,
-              lineHeight: 1.6,
-              color: "var(--dsw-alias-label-primary, #0f1115)"
-            }
-          }, dshUpgradeResult.message),
-          dshUpgradeResult?.ok && !dismissRestart && React.createElement(
-            "div",
-            {
-              style: { display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 10 }
-            },
-            React.createElement("button", {
-              style: { ...s.btnPri, height: 30, fontSize: 12, padding: "0 14px", background: "#047857", color: "#ffffff" },
-              onClick: handleRestart
-            }, "\u{1F504} \u7ACB\u5373\u91CD\u542F DSH \u670D\u52A1"),
-            React.createElement("button", {
-              style: { ...s.btnGhost, height: 30, fontSize: 12, padding: "0 12px" },
-              onClick: () => setDismissRestart(true)
-            }, "\u7A0D\u540E\u624B\u52A8\u91CD\u542F")
-          ),
-          (restarting || restartStatus) && React.createElement(
-            "div",
-            {
-              style: {
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                fontSize: 12,
-                marginTop: 8,
-                color: "var(--dsw-alias-label-primary, #0f1115)",
-                fontWeight: 500
-              }
-            },
-            restartStatus?.phase !== "success" && restartStatus?.phase !== "timeout" && React.createElement("span", {
-              style: { animation: "spin 1s linear infinite", display: "inline-flex" }
-            }, React.createElement(Icons.refresh)),
-            restartStatus?.text || "\u6B63\u5728\u5904\u7406\u2026"
-          )
-        )
-      )
     )
   );
 }
@@ -6745,7 +6289,7 @@ function BridgePanel({ rpcCall, preferredTab }) {
         onClick: () => setActiveTab("security")
       }, "\u{1F510} \u7ACB\u5373\u8BBE\u7F6E\u5BC6\u7801")
     ),
-    React.createElement(VersionBanner, { rpcCall: authRpcCall }),
+    React.createElement(LocalVersionRow, { rpcCall: authRpcCall }),
     React.createElement(TabBar, { active: activeTab, onChange: setActiveTab, dots }),
     tabContent,
     // 全局交互式解锁弹窗 Modal

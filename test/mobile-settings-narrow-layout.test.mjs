@@ -530,14 +530,19 @@ test('设置页内弹出的第三方模态框必须盖在设置弹窗之上，�
   assert.doesNotMatch(structureCss, /dshmarket/i, '样式表不得硬编码第三方插件标识');
 });
 
-test('版本状态行左组允许换行收缩，「检查更新」不再被裁', () => {
-  const marker = '// flexWrap + minWidth:0 是必需的';
+test('版本状态行左组允许换行收缩（不再有「检查更新」按钮，但仍不得被裁）', () => {
+  const marker = 'flexWrap + minWidth:0 是必需的';
   assert.ok(indexSource.includes(marker), '版本状态行左组应带修复说明注释');
   const idx = indexSource.indexOf(marker);
   const snippet = indexSource.slice(idx, idx + 400);
   assert.match(snippet, /flexWrap:\s*'wrap'/, '左组应允许换行');
   assert.match(snippet, /minWidth:\s*0/, '左组应允许收缩');
-  assert.match(indexSource, /whiteSpace:\s*'nowrap',\s*\n\s*flexShrink:\s*0,/, '「检查更新」按钮应 nowrap + flexShrink:0');
+  // 远端更新功能已整体移除：面板里不得再出现「检查更新」按钮。
+  // 只看代码、跳过注释 —— 源码里保留"原检查更新/一键升级已移除"的说明注释是有价值的。
+  const indexCode = indexSource
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  assert.doesNotMatch(indexCode, /检查更新|一键升级/, '「检查更新 / 一键升级」入口应已随远端更新功能移除');
 });
 
 test('Tab 条具备横滑可达提示（边缘渐隐 + 当前项滚入可视区）', () => {

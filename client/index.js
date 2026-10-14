@@ -139,36 +139,11 @@ const CLOUDFLARE_TUTORIAL_URL = 'https://github.com/wenbin-wb/dsh-bridge/blob/ma
 // 供 setupMobileExperience / setupComposerCollapse 等各函数读取（不通过参数传递）。
 let localeT = (key) => key;
 
-// 生成升级命令（拼接具体版本号；用 add 而非 update，update --latest 受已安装依赖版本约束可能无法升级到最新版）
-function upgradeCommands(latest) {
-  const spec = `@wenbin_wb/dsh-bridge@${latest}`;
-  return [
-    { id: 'dsh',    cmd: `dsh plugin --profile web add ${spec}` },
-    { id: 'npx',    cmd: `npx --yes @deepseek-ai/dsh plugin --profile web add ${spec}` },
-  ];
-}
-
 const name = 'dsh-bridge';
 // 注：locale 服务不能通过 inject 声明（动态插件激活时该服务不在运行时上下文，
 // 声明会导致「entry did not activate」）；改用 apply 内 ctx.get('locale') 可选获取，
 // 无则退化为本地 en/zh 词典（见 locales.mjs）。
 const inject = ['slots', 'connection', 'workspaces', 'sessions'];
-
-// semver 比较：a > b
-function semverGt(a, b) {
-  const parse = (v) => {
-    const [main = '', pre = ''] = String(v).split('-');
-    const [maj = 0, min = 0, pat = 0] = main.split('.').map(Number);
-    return { maj, min, pat, pre };
-  };
-  const av = parse(a), bv = parse(b);
-  if (av.maj !== bv.maj) return av.maj > bv.maj;
-  if (av.min !== bv.min) return av.min > bv.min;
-  if (av.pat !== bv.pat) return av.pat > bv.pat;
-  if (!av.pre && bv.pre) return true;
-  if (av.pre && !bv.pre) return false;
-  return av.pre > bv.pre;
-}
 
 const s = {
   card:     { background: 'var(--dsw-alias-bg-layer-2,#f9fafb)', border: '1px solid var(--dsw-alias-border-l2,#e5e7eb)', borderRadius: 12, padding: '16px 18px', marginBottom: 16, boxSizing: 'border-box' },
@@ -236,34 +211,8 @@ const Icons = {
 
 // ---- 子组件 ----
 
-// 通用复制 hook：返回 [copied, copy]，copy(text) 复制文本并短暂显示成功状态
-function useCopy() {
-  const [copied, setCopied] = React.useState(false);
-  const copy = React.useCallback((text) => {
-    const done = () => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    };
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy());
-    } else {
-      fallbackCopy();
-    }
-    // 降级方案：使用 document.execCommand (HTTP 环境下 Clipboard API 不可用)
-    function fallbackCopy() {
-      const textarea = document.createElement('textarea');
-      textarea.value = text;
-      textarea.style.position = 'fixed';
-      textarea.style.opacity = '0';
-      document.body.appendChild(textarea);
-      textarea.select();
-      const success = document.execCommand('copy');
-      document.body.removeChild(textarea);
-      if (success) done();
-    }
-  }, []);
-  return [copied, copy];
-}
+// 注：原先这里有一个通用复制 hook useCopy()，它只被面板上「一键升级」那组按钮
+// （复制升级命令）使用；该按钮已随远端更新功能移除，hook 也一并删除。
 
 function StatusTag({ running, status }) {
   let bg = 'var(--dsw-alias-bg-layer-2,#f3f4f6)';
@@ -2582,7 +2531,9 @@ function useDshRestart({ rpcCall, maxAttempts = 30, texts = {} } = {}) {
     pollRef.current = setInterval(async () => {
       attempts++;
       try {
-        const r = await rpcCall(BRIDGE_ENDPOINTS.checkVersion, {});
+        // 探活：用 getStatus 判断服务是否已经回来（原先借 checkVersion 当探针，
+        // 该端点已随「远端更新」功能一起移除）
+        const r = await rpcCall(BRIDGE_ENDPOINTS.getStatus, {});
         if (r?.ok) {
           clearInterval(pollRef.current);
           pollRef.current = null;
@@ -2756,99 +2707,28 @@ function RemoteWorkspaceCard({ rpcCall }) {
 }
 
 // 手动升级命令行：展示命令 + 一键复制
-function UpgradeCommandRow({ cmd }) {
-  const [copied, copy] = useCopy();
-  return React.createElement('div', { style: { display: 'flex', gap: 6, alignItems: 'center' } },
-    React.createElement('code', {
-      style: { ...s.code, flex: '1 1 auto', fontSize: 12, lineHeight: 1.5, wordBreak: 'break-all' },
-    }, cmd),
-    React.createElement('button', {
-      style: { ...s.btnGhost, height: 26, padding: '0 10px', fontSize: 11, flex: '0 0 auto' },
-      onClick: () => copy(cmd),
-    }, copied ? '✓ 已复制' : '复制'),
-  );
-}
+// 本地版本行：只显示**本机当前使用的版本**（插件 + DSH），并保留 GitHub/更新日志/反馈入口。
+//
+// 注：原「检查更新 + 一键升级插件 + 一键升级 DSH」已按需求整体移除（连同宿主侧的
+// checkVersion / upgradePlugin / upgradeDsh 与对应 RPC 端点）。版本数据取自现有
+// getStatus（宿主本地读取，不联网），因此这里**不存在任何远端版本比较或升级入口**。
+function LocalVersionRow({ rpcCall }) {
+  const [versions, setVersions] = React.useState(null);
 
-// 版本检查 + 一键升级 + GitHub/反馈入口
-function VersionBanner({ rpcCall }) {
-  const [info, setInfo] = React.useState(null);
-  const [loading, setLoading] = React.useState(false);
-  const [upgrading, setUpgrading] = React.useState(false);
-  const [upgradeResult, setUpgradeResult] = React.useState(null);
-  const [showManual, setShowManual] = React.useState(false);
-  const [dismissRestart, setDismissRestart] = React.useState(false);
-  const { restarting, status: restartStatus, startRestart: handleRestart, resetStatus: resetRestartStatus } = useDshRestart({
-    rpcCall,
-    texts: {
-      restarting: '正在调度 DSH 服务重启…',
-      success: '🎉 重启成功！已自动加载最新版本。正在刷新页面…',
-    },
-  });
-
-  const check = React.useCallback(async () => {
-    setLoading(true);
-    try {
-      const r = await rpcCall(BRIDGE_ENDPOINTS.checkVersion, {});
-      if (r?.ok) setInfo(r.value);
-    } catch {
-      // 版本检查失败：保留现有 info，不打断面板
-    } finally {
-      setLoading(false);
-    }
+  React.useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await rpcCall(BRIDGE_ENDPOINTS.getStatus, {});
+        if (alive && r?.ok) {
+          setVersions({ version: r.value?.version ?? null, dshVersion: r.value?.dshVersion ?? null });
+        }
+      } catch {
+        // 拿不到版本就只显示占位，不打断面板
+      }
+    })();
+    return () => { alive = false; };
   }, [rpcCall]);
-
-  React.useEffect(() => { check(); }, [check]);
-
-  const hasUpdate = info?.latest && info?.current && !info.error && semverGt(info.latest, info.current);
-  const isLatest = info?.latest && info?.current && !info.error && !semverGt(info.latest, info.current);
-  // DSH 宿主更新状态：有线上新版 + 当前版本可比较
-  const dshHasUpdate = !!(info?.dshLatest && info?.dshVersion && !info.error && semverGt(info.dshLatest, info.dshVersion));
-
-  const handleUpgrade = React.useCallback(async () => {
-    if (!info?.latest || upgrading) return;
-    setUpgrading(true);
-    setUpgradeResult(null);
-    setDismissRestart(false);
-    resetRestartStatus();
-    try {
-      const r = await rpcCall(BRIDGE_ENDPOINTS.upgradePlugin, { version: info.latest });
-      if (r?.ok && r.value?.ok) {
-        setUpgradeResult({ ok: true, message: `已成功升级到 v${info.latest}！` });
-      } else {
-        setUpgradeResult({ ok: false, message: r?.value?.error || r?.error?.message || '升级失败' });
-        setShowManual(true);
-      }
-    } catch (e) {
-      setUpgradeResult({ ok: false, message: e.message || '升级请求失败' });
-      setShowManual(true);
-    } finally {
-      setUpgrading(false);
-    }
-  }, [info?.latest, upgrading, rpcCall]);
-
-  // DSH 宿主一键升级：仅当服务端判定可自动升级（npm 全局安装）时按钮才会出现
-  const [dshUpgrading, setDshUpgrading] = React.useState(false);
-  const [dshUpgradeResult, setDshUpgradeResult] = React.useState(null);
-  const handleUpgradeDsh = React.useCallback(async () => {
-    if (!info?.dshLatest || dshUpgrading) return;
-    setDshUpgrading(true);
-    setDshUpgradeResult(null);
-    setDismissRestart(false);
-    resetRestartStatus();
-    try {
-      const r = await rpcCall(BRIDGE_ENDPOINTS.upgradeDsh, { version: info.dshLatest });
-      if (r?.ok && r.value?.ok) {
-        setDshUpgradeResult({ ok: true, message: `DSH 已成功升级到 v${info.dshLatest}！` });
-      } else {
-        const msg = r?.value?.error || r?.error?.message || '升级失败';
-        setDshUpgradeResult({ ok: false, message: msg, manual: true });
-      }
-    } catch (e) {
-      setDshUpgradeResult({ ok: false, message: e.message || '升级请求失败', manual: true });
-    } finally {
-      setDshUpgrading(false);
-    }
-  }, [info?.dshLatest, dshUpgrading, rpcCall]);
 
   const links = React.createElement('div', { style: { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' } },
     React.createElement('a', {
@@ -2863,350 +2743,25 @@ function VersionBanner({ rpcCall }) {
   );
 
   return React.createElement('div', { style: { marginBottom: 16 } },
-    // 顶部状态行：版本徽标 + 刷新按钮 + 链接组
     React.createElement('div', {
-      style: {
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 8,
-      },
+      style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 },
     },
-      // 左组：版本徽标 + DSH 版本 + 检查更新。
-      // flexWrap + minWidth:0 是必需的：此前只写 display:flex，左组既不能收缩也不能换行，
-      // 会把整行顶到 305px；手机设置页内容列只有 277px，溢出部分被
-      // overflow-x:hidden 静默裁掉（「检查更新」按钮被切一半）。
+      // 左组：版本徽标 + DSH 版本。flexWrap + minWidth:0 是必需的：只写 display:flex 时
+      // 左组既不能收缩也不能换行，会把整行顶宽、在手机设置页被 overflow-x:hidden 静默裁掉。
       React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', minWidth: 0 } },
-        // 版本状态徽标
+        React.createElement('span', { style: s.tag },
+          versions?.version ? `v${versions.version}` : 'v…',
+        ),
+        versions?.dshVersion && React.createElement('span', {
+          style: { ...s.muted, fontSize: 11 },
+        }, `DSH ${versions.dshVersion}`),
         React.createElement('span', {
-          style: {
-            ...s.tag,
-            background: hasUpdate
-              ? 'var(--dsw-alias-state-info-bg,#eff6ff)'
-              : isLatest
-                ? 'var(--dsw-alias-state-success-bg,#ecfdf5)'
-                : 'var(--dsw-alias-bg-layer-2,#f3f4f6)',
-            color: hasUpdate || isLatest
-              ? 'var(--dsw-alias-label-primary, #0f1115)'
-              : 'var(--dsw-alias-label-secondary,#6b7280)',
-            padding: '3px 10px',
-            fontSize: 12,
-            fontWeight: 500,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 5,
-          },
-        },
-          loading
-            ? React.createElement('span', {
-                style: { display: 'inline-flex', alignItems: 'center' },
-              }, React.createElement(Icons.refresh))
-            : isLatest
-              ? React.createElement(Icons.check)
-              : null,
-          info ? `v${info.current}` : '版本检查中…',
-          isLatest && React.createElement('span', { style: { opacity: 0.85, fontSize: 11, fontWeight: 400 } }, '· 已是最新'),
-          hasUpdate && React.createElement('span', { style: { fontWeight: 600, fontSize: 11 } }, `➔ v${info.latest}`),
-          info?.error && React.createElement('span', { style: { color: 'var(--dsw-alias-label-primary, #0f1115)', fontSize: 11 } }, '(网络超时)'),
-        ),
-        // DSH 宿主版本标签（有新版时黄色高亮）
-        info?.dshVersion && React.createElement('span', {
-          style: {
-            ...s.tag,
-            background: dshHasUpdate
-              ? 'var(--dsw-alias-state-warn-bg,#fffbeb)'
-              : 'var(--dsw-alias-bg-layer-2,#f3f4f6)',
-            color: dshHasUpdate
-              ? 'var(--dsw-alias-label-primary, #0f1115)'
-              : 'var(--dsw-alias-label-tertiary,#6b7280)',
-            padding: '3px 10px',
-            fontSize: 12,
-            fontWeight: 500,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 5,
-          },
-          title: dshHasUpdate ? `发现 DSH 新版本 v${info.dshLatest}` : undefined,
-        },
-          React.createElement('span', { style: { opacity: 0.75, fontSize: 11, fontWeight: 400 } }, 'DSH'),
-          `v${info.dshVersion}`,
-          dshHasUpdate && React.createElement('span', { style: { fontWeight: 600, fontSize: 11 } }, `➔ v${info.dshLatest}`),
-        ),
-        // 刷新检查按钮
-        React.createElement('button', {
-          style: {
-            ...s.btnGhost,
-            height: 24,
-            padding: '0 8px',
-            fontSize: 11,
-            opacity: loading ? 0.5 : 1,
-            gap: 4,
-            // 按钮是 inline-flex，文字会成为匿名 flex 项；被挤窄时会把「检查更新」
-            // 折成两行。nowrap + flexShrink:0 保证它整体换行（由父级 flexWrap 负责）。
-            whiteSpace: 'nowrap',
-            flexShrink: 0,
-          },
-          onClick: check,
-          disabled: loading || upgrading || restarting,
-          title: '重新检查 npm 线上版本',
-        },
-          React.createElement(Icons.refresh),
-          loading ? '检查中…' : '检查更新',
-        ),
+          style: { ...s.muted, fontSize: 11 },
+          title: '本插件不提供远端更新：这里只显示本机当前使用的版本',
+        }, '· 本地版本'),
       ),
       links,
     ),
-
-    // 发现新版本高亮卡片（支持一键直接升级）
-    hasUpdate && React.createElement('div', {
-      style: {
-        ...s.card,
-        background: 'var(--dsw-alias-state-info-bg,#eff6ff)',
-        border: '1px solid var(--dsw-alias-state-info-border,#bfdbfe)',
-        padding: '14px 16px',
-        marginTop: 10,
-        marginBottom: 0,
-      },
-    },
-      React.createElement('div', { style: { display: 'flex', alignItems: 'flex-start', gap: 12 } },
-        React.createElement('span', { style: { fontSize: 22 } }, '🚀'),
-        React.createElement('div', { style: { flex: 1, minWidth: 0 } },
-          React.createElement('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 8 } },
-            React.createElement('div', {
-              style: {
-                fontSize: 13,
-                fontWeight: 600,
-                color: 'var(--dsw-alias-label-primary, #0f1115)',
-              },
-            }, `发现新版本 v${info.latest}（当前 v${info.current}）`),
-            React.createElement('button', {
-              style: {
-                ...s.btnPri,
-                height: 28,
-                fontSize: 12,
-                padding: '0 14px',
-                background: upgradeResult?.ok
-                  ? '#047857'
-                  : 'var(--dsw-alias-brand-primary,#4f6ef7)',
-                color: upgradeResult?.ok
-                  ? '#ffffff'
-                  : 'var(--dsw-alias-label-primary-foreground, #fff)',
-                opacity: (upgrading || restarting) ? 0.6 : 1,
-              },
-              onClick: handleUpgrade,
-              disabled: upgrading || restarting || upgradeResult?.ok,
-            },
-              upgrading
-                ? React.createElement('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 6 } },
-                    React.createElement('span', { style: { animation: 'spin 1s linear infinite', display: 'inline-flex' } }, React.createElement(Icons.refresh)),
-                    '正在自动升级…',
-                  )
-                : upgradeResult?.ok
-                  ? '✓ 升级完成'
-                  : `一键升级到 v${info.latest}`
-            ),
-          ),
-
-          // 简短更新内容 / Release Notes 亮点展示
-          info?.releaseNotes && React.createElement('div', {
-            style: {
-              fontSize: 12,
-              color: 'var(--dsw-alias-label-primary, #374151)',
-              background: 'var(--dsw-alias-bg-layer-2, rgba(255, 255, 255, 0.85))',
-              border: '1px solid var(--dsw-alias-state-info-border, rgba(191, 219, 254, 0.8))',
-              borderRadius: 8,
-              padding: '8px 12px',
-              marginBottom: 10,
-              lineHeight: 1.6,
-              whiteSpace: 'pre-line',
-            },
-          },
-            React.createElement('div', { style: { fontWeight: 600, color: 'var(--dsw-alias-label-primary, #0f1115)', marginBottom: 2 } }, '✨ 更新亮点：'),
-            info.releaseNotes
-          ),
-
-          // 升级成功后：引导重启 DSH 操作卡片
-          upgradeResult?.ok && !dismissRestart && React.createElement('div', {
-            style: {
-              background: 'var(--dsw-alias-bg-layer-2, rgba(255, 255, 255, 0.95))',
-              border: '1px solid var(--dsw-alias-state-success-border, #a7f3d0)',
-              borderRadius: 8,
-              padding: '12px 14px',
-              marginBottom: 10,
-            },
-          },
-            React.createElement('div', { style: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 } },
-              React.createElement('span', { style: { fontSize: 16 } }, '✨'),
-              React.createElement('span', {
-                style: { fontSize: 13, fontWeight: 600, color: 'var(--dsw-alias-label-primary, #0f1115)' },
-              }, `已成功升级到 v${info.latest}！需要重启 DSH 服务使新版本生效`),
-            ),
-            !restarting && !restartStatus && React.createElement('div', {
-              style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' },
-            },
-              React.createElement('button', {
-                style: {
-                  ...s.btnPri,
-                  height: 30,
-                  fontSize: 12,
-                  padding: '0 14px',
-                  background: '#047857',
-                  color: '#ffffff',
-                },
-                onClick: handleRestart,
-              }, '🔄 立即重启 DSH 服务'),
-              React.createElement('button', {
-                style: {
-                  ...s.btnGhost,
-                  height: 30,
-                  fontSize: 12,
-                  padding: '0 12px',
-                },
-                onClick: () => setDismissRestart(true),
-              }, '稍后手动重启'),
-            ),
-            (restarting || restartStatus) && React.createElement('div', {
-              style: {
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                fontSize: 12,
-                color: 'var(--dsw-alias-label-primary, #0f1115)',
-                fontWeight: 500,
-              },
-            },
-              restartStatus?.phase !== 'success' && restartStatus?.phase !== 'timeout' && React.createElement('span', {
-                style: { animation: 'spin 1s linear infinite', display: 'inline-flex' },
-              }, React.createElement(Icons.refresh)),
-              restartStatus?.text || '正在处理…',
-            ),
-          ),
-
-          // 失败提示
-          upgradeResult && !upgradeResult.ok && React.createElement('div', {
-            style: {
-              background: 'var(--dsw-alias-state-error-bg,#fef2f2)',
-              border: '1px solid var(--dsw-alias-state-error-border,#fecaca)',
-              color: 'var(--dsw-alias-label-primary, #0f1115)',
-              padding: '8px 12px',
-              borderRadius: 6,
-              fontSize: 12,
-              marginBottom: 8,
-              lineHeight: 1.5,
-            },
-          }, upgradeResult.message),
-
-          React.createElement('div', { style: { marginTop: 4 } },
-            React.createElement('button', {
-              style: { ...s.btnLink, fontSize: 11, color: 'var(--dsw-alias-label-secondary,#6b7280)' },
-              onClick: () => setShowManual(v => !v),
-            }, showManual ? '▴ 折叠手动命令行' : '▾ 查看手动升级命令 (如需)'),
-          ),
-
-          showManual && React.createElement('div', {
-            style: { display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 },
-          },
-            upgradeCommands(info.latest).map(({ id, cmd }) =>
-              React.createElement(UpgradeCommandRow, { key: id, cmd })
-            ),
-          ),
-        ),
-      ),
-    ),
-
-      // ── DSH 宿主有新版本时的提示 / 一键升级卡片 ──
-      dshHasUpdate && React.createElement('div', {
-        style: {
-          ...s.card,
-          background: 'var(--dsw-alias-state-warn-bg,#fffbeb)',
-          border: '1px solid var(--dsw-alias-state-warn-border,#fde68a)',
-          padding: '14px 16px',
-          marginTop: 10,
-          marginBottom: 0,
-        },
-      },
-        React.createElement('div', { style: { display: 'flex', alignItems: 'flex-start', gap: 12 } },
-          React.createElement('span', { style: { fontSize: 22 } }, '🛠️'),
-          React.createElement('div', { style: { flex: 1, minWidth: 0 } },
-            React.createElement('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 8 } },
-              React.createElement('div', {
-                style: { fontSize: 13, fontWeight: 600, color: 'var(--dsw-alias-label-primary, #0f1115)' },
-              }, `DSH 有新版本 v${info.dshLatest}（当前 v${info.dshVersion}）`),
-              info?.dshUpgradable
-                ? React.createElement('button', {
-                    style: {
-                      ...s.btnPri,
-                      height: 28,
-                      fontSize: 12,
-                      padding: '0 14px',
-                      background: dshUpgradeResult?.ok
-                        ? '#047857'
-                        : 'var(--dsw-alias-brand-primary,#4f6ef7)',
-                      color: dshUpgradeResult?.ok
-                        ? '#ffffff'
-                        : 'var(--dsw-alias-label-primary-foreground, #fff)',
-                      opacity: (dshUpgrading || restarting) ? 0.6 : 1,
-                    },
-                    onClick: handleUpgradeDsh,
-                    disabled: dshUpgrading || restarting || dshUpgradeResult?.ok,
-                  },
-                  dshUpgrading
-                    ? React.createElement('span', { style: { display: 'inline-flex', alignItems: 'center', gap: 6 } },
-                        React.createElement('span', { style: { animation: 'spin 1s linear infinite', display: 'inline-flex' } }, React.createElement(Icons.refresh)),
-                        '正在升级 DSH…',
-                      )
-                    : dshUpgradeResult?.ok
-                      ? '✓ DSH 升级完成'
-                      : `一键升级 DSH 到 v${info.dshLatest}`,
-                )
-                : React.createElement('a', {
-                    href: GITHUB_URL, target: '_blank', rel: 'noreferrer',
-                    style: { ...s.btnLink, fontSize: 12, fontWeight: 600 },
-                  }, '查看官方升级方式 ↗'),
-            ),
-            React.createElement('div', {
-              style: { fontSize: 12, color: 'var(--dsw-alias-label-secondary,#6b7280)', lineHeight: 1.6 },
-            },
-              info?.dshUpgradable
-                ? '升级 DSH 命令行工具后需重启 DSH 服务生效。'
-                : (info?.dshUpgradeReason || '当前 DSH 非 npm 全局安装，无法一键自动升级，请按官方渠道手动更新。'),
-            ),
-            dshUpgradeResult && React.createElement('div', {
-              style: {
-                marginTop: 10,
-                fontSize: 12,
-                lineHeight: 1.6,
-                color: 'var(--dsw-alias-label-primary, #0f1115)',
-              },
-            }, dshUpgradeResult.message),
-            dshUpgradeResult?.ok && !dismissRestart && React.createElement('div', {
-              style: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 10 },
-            },
-              React.createElement('button', {
-                style: { ...s.btnPri, height: 30, fontSize: 12, padding: '0 14px', background: '#047857', color: '#ffffff' },
-                onClick: handleRestart,
-              }, '🔄 立即重启 DSH 服务'),
-              React.createElement('button', {
-                style: { ...s.btnGhost, height: 30, fontSize: 12, padding: '0 12px' },
-                onClick: () => setDismissRestart(true),
-              }, '稍后手动重启'),
-            ),
-            (restarting || restartStatus) && React.createElement('div', {
-              style: {
-                display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, marginTop: 8,
-                color: 'var(--dsw-alias-label-primary, #0f1115)',
-                fontWeight: 500,
-              },
-            },
-              restartStatus?.phase !== 'success' && restartStatus?.phase !== 'timeout' && React.createElement('span', {
-                style: { animation: 'spin 1s linear infinite', display: 'inline-flex' },
-              }, React.createElement(Icons.refresh)),
-              restartStatus?.text || '正在处理…',
-            ),
-          ),
-        ),
-      ),
   );
 }
 
@@ -4051,7 +3606,7 @@ function BridgePanel({ rpcCall, preferredTab }) {
       }, '🔐 立即设置密码'),
     ),
 
-    React.createElement(VersionBanner, { rpcCall: authRpcCall }),
+    React.createElement(LocalVersionRow, { rpcCall: authRpcCall }),
 
     React.createElement(TabBar, { active: activeTab, onChange: setActiveTab, dots }),
 

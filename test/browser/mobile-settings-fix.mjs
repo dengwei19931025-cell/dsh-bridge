@@ -92,7 +92,8 @@ const snap = () =>
           };
         })
       : [];
-    const updateBtn = options ? [...options.querySelectorAll('button')].find((b) => /检查更新|检查中/.test(b.textContent || '')) : null;
+    // 远端更新功能已移除：这里改为确认「本地版本」行本身没被裁切
+    const versionRow = options ? [...options.querySelectorAll('span')].find((b) => /本地版本/.test(b.textContent || '')) : null;
     const tabbar = ov.querySelector('.dsh-tabbar-container');
     return {
       found: true,
@@ -115,7 +116,7 @@ const snap = () =>
       closeInsideViewport: close ? close.getBoundingClientRect().right <= window.innerWidth + 0.5 && close.getBoundingClientRect().bottom <= window.innerHeight + 0.5 : false,
       unreachable,
       navCells,
-      updateBtn: updateBtn ? { rect: rect(updateBtn), text: (updateBtn.textContent || '').trim() } : null,
+      versionRow: versionRow ? { rect: rect(versionRow), text: (versionRow.textContent || '').trim() } : null,
       tabbar: tabbar
         ? {
             mask: getComputedStyle(tabbar).maskImage || getComputedStyle(tabbar).webkitMaskImage,
@@ -186,9 +187,9 @@ for (const vp of VIEWPORTS) {
     );
     record(
       label,
-      '版本行「检查更新」未被裁切且单行',
-      !!detail.updateBtn && detail.updateBtn.rect.h <= 26 && detail.updateBtn.rect.right <= (detail.options?.right ?? 0) + 1,
-      detail.updateBtn ? `h=${detail.updateBtn.rect.h} right=${detail.updateBtn.rect.right} optionsRight=${detail.options?.right}` : 'not found',
+      '版本行「本地版本」未被裁切且单行',
+      !!detail.versionRow && detail.versionRow.rect.h <= 26 && detail.versionRow.rect.right <= (detail.options?.right ?? 0) + 1,
+      detail.versionRow ? `h=${detail.versionRow.rect.h} right=${detail.versionRow.rect.right} optionsRight=${detail.options?.right}` : 'not found',
     );
     record(label, '内容列宽度 ≥ 340px（钻取后内容占满整宽）', (detail.options?.w ?? 0) >= 340, `options.w=${detail.options?.w}`);
     await page.screenshot({ path: path.join(SHOTS, `${label}__detail.png`) });

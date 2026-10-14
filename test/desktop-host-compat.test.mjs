@@ -12,15 +12,9 @@ const makeService = () => new BridgeService({
   dshPort: 3080, proxyPort: 3082, home: {}, logger: quietLogger,
 });
 
-// 模拟子进程成功（退出码 0）的 spawn
-const mockSpawnOk = (onCall) => (cmd, args) => {
-  onCall?.(cmd, args);
-  return {
-    stdout: { on: (e, cb) => { if (e === 'data') setTimeout(() => cb(Buffer.from('ok')), 0); } },
-    stderr: { on: () => {} },
-    on: (event, cb) => { if (event === 'close') setTimeout(() => cb(0), 5); },
-  };
-};
+// 注：原先这里还有一个 mockSpawnOk（模拟子进程退出码 0 的 spawn），
+// 它只被「upgradePlugin 装包」那三条用例使用；那些用例已随远端更新功能移除，
+// 该 helper 也一并删除，避免留下无人使用的死代码。
 
 const DESKTOP_VERSIONS = { node: '22.0.0', electron: '44.0.0' };
 const DESKTOP_ARGV1 = '/Applications/DeepSeek Harness.app/Contents/Resources/app.asar/dsh/node_modules/@deepseek-ai/dsh-desktop-host/lib/index.js';
@@ -109,53 +103,8 @@ test('P0：非桌面端 restartDsh 不受桌面拦截影响', async () => {
   assert.ok(spawnedCmd, '应派生重启助手');
 });
 
-test('P1：upgradePlugin 默认用 web profile（Web/CLI 行为不变）', async () => {
-  const service = makeService();
-  let actualArgs = null;
-  const result = await service.upgradePlugin({
-    version: '2.12.1',
-    spawnImpl: mockSpawnOk((cmd, args) => { actualArgs = { cmd, args }; }),
-  });
-  assert.equal(result.ok, true, `升级应成功：${result.error}`);
-  assert.deepEqual(
-    actualArgs.args.slice(0, 4),
-    ['plugin', '--profile', 'web', 'add'],
-    `默认 profile 必须是 web：${actualArgs.args.join(' ')}`,
-  );
-});
-
-test('P1：upgradePlugin 显式 desktop 时装进 desktop profile', async () => {
-  const service = makeService();
-  let actualArgs = null;
-  const result = await service.upgradePlugin({
-    version: '2.12.1',
-    profile: 'desktop',
-    spawnImpl: mockSpawnOk((cmd, args) => { actualArgs = { cmd, args }; }),
-  });
-  assert.equal(result.ok, true, `升级应成功：${result.error}`);
-  assert.deepEqual(
-    actualArgs.args.slice(0, 4),
-    ['plugin', '--profile', 'desktop', 'add'],
-    `必须装进 desktop profile：${actualArgs.args.join(' ')}`,
-  );
-});
-
-test('P1：upgradePlugin 的 profile 只认白名单，注入字符串被丢弃', async () => {
-  const service = makeService();
-  let actualArgs = null;
-  const result = await service.upgradePlugin({
-    version: '2.12.1',
-    profile: 'web; touch /tmp/pwned',
-    spawnImpl: mockSpawnOk((cmd, args) => { actualArgs = { cmd, args }; }),
-  });
-  assert.equal(result.ok, true);
-  const joined = actualArgs.args.join(' ');
-  assert.ok(!joined.includes('touch'), `注入字符串绝不能进入命令：${joined}`);
-  assert.ok(
-    joined.includes('--profile web') || joined.includes('--profile desktop'),
-    `必须回退到合法 profile：${joined}`,
-  );
-});
+// 注：原「upgradePlugin 按 profile 装包 / profile 白名单防注入」三条用例已随
+// 「远端更新」功能整体移除（插件不再提供任何升级能力，见 test/no-remote-update.test.mjs 的守卫）。
 
 // ---------- Issue #56 §4：包级别 mobileUi opt-in ----------
 

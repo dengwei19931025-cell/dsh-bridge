@@ -65,7 +65,7 @@
 - **🗂️ Web Remote Workspace Directory Picker**: Mobile/remote visits pop up responsive tree directory browser; localhost visits route to OS native dialogs; supports `/addworkspace` IM command;
 - **🔐 Comprehensive Access Security & Dual Defenses**: QR code secret Token login, visitor password gate, independent admin anti-tamper lock; host physical privilege (`127.0.0.1`) & emergency terminal reset (`reset-auth`);
 - **🤖 All-in-One IM Bot Matrix (WeChat / QQ / Feishu / Telegram)**: Multi-workspace dispatching, cross-restart session persistence, streaming Markdown typewriter, Card 2.0 interactive approvals, and bidirectional file sharing;
-- **📊 Maintenance & Smooth Upgrades**: Host CPU / RAM / Uptime metrics, 1-click network diagnosis, JSON configuration backup & restore, npmmirror fast check & graceful restart.
+- **📊 Maintenance & Smooth Restart**: Host CPU / RAM / Uptime metrics, 1-click network diagnosis, JSON configuration backup & restore, graceful restart (**no** remote version check or auto-upgrade).
 
 ---
 
@@ -113,13 +113,15 @@ git clone https://github.com/wenbin-wb/dsh-bridge.git
 dsh plugin --profile web add ./dsh-bridge
 ```
 
-### Upgrade
+### Updating (manual)
+
+> **This plugin does not do remote updates**: it never checks npm for a newer version and offers no
+> "1-click upgrade" — the panel only shows **the version you are running locally**.
+
+To update, install your own build manually and restart DSH:
 
 ```bash
-# Recommended: Click "🚀 1-Click Upgrade & Restart" in Web Settings > Remote Access
-
-# Or force install latest version via CLI:
-dsh plugin --profile web add @wenbin_wb/dsh-bridge@latest
+dsh plugin --profile web add /path/to/your/dsh-bridge
 ```
 
 ### DSH Desktop (desktop app) installation

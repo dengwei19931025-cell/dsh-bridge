@@ -185,28 +185,9 @@ test('P0-4: RPC 服务端管理员权限校验与主动重新锁定', async () =
   assert.equal(retryRes.error.code, 'bad-request')
 })
 
-test('P0-5: 升级插件命令注入防范与版本正则白名单', async () => {
-  const service = new BridgeService({
-    ctx: { webServer: { port: 3000 } },
-    proxyPort: 3082,
-    logger: { info: () => {}, error: () => {}, warn: () => {} },
-  })
-
-  // 1. 含有分号注入的非法版本号被拦截
-  const r1 = await service.upgradePlugin({ version: '2.5.0; calc.exe' })
-  assert.equal(r1.ok, false)
-  assert.ok(r1.error.includes('非法的版本号格式'))
-
-  // 2. 含有 & 管道符号的非法版本号被拦截
-  const r2 = await service.upgradePlugin({ version: '2.5.0 & whoami' })
-  assert.equal(r2.ok, false)
-  assert.ok(r2.error.includes('非法的版本号格式'))
-
-  // 3. 含有 $() 反引号注入的非法版本号被拦截
-  const r3 = await service.upgradePlugin({ version: '`id`' })
-  assert.equal(r3.ok, false)
-  assert.ok(r3.error.includes('非法的版本号格式'))
-})
+// 注：原 P0-5「升级插件命令注入防范与版本正则白名单」已随「远端更新」功能整体移除 ——
+// 该攻击面（upgradePlugin 拼接版本号执行 npm 命令）不再存在，
+// 由 test/no-remote-update.test.mjs 守卫"这套能力确实没有了"。
 
 test('P0-6: Scope 防护范围 Header 伪造防范', () => {
   const auth = new AuthManager({ sessionsFile: makeSessionsFile(),

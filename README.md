@@ -65,7 +65,7 @@
 - **🗂️ 远程工作区网页选择器**：手机端点击添加工作区唤出树形目录抽屉浏览器，电脑本机点击自动分流调用系统原生选择窗口；支持 IM 指令 `/addworkspace` 远程注册；
 - **🔐 全域安全认证与双防线门禁**：专属二维码 256-bit Token 免密直通、外部访问密码门禁、独立后台管理员防篡改锁；内置物理机（`127.0.0.1`）最高特权与终端一秒救急重置（`reset-auth`）；
 - **🤖 全能 IM 机器人矩阵（微信 / QQ / 飞书 / Telegram）**：支持多工作区会话调度、跨重启会话持久化、Markdown 打字机流式输出、Card 2.0 原生一键点击审批与文件双向直传；**飞书**底层为官方 Channel SDK，接入只需手机扫码一键创建应用；
-- **📊 运维看板与平滑升级**：系统 CPU / 内存 / Uptime 实时看板、网络连通性一键诊断、全局配置 JSON 导出恢复、npmmirror 极速版本检查与平滑重启。
+- **📊 运维看板与平滑升级**：系统 CPU / 内存 / Uptime 实时看板、网络连通性一键诊断、全局配置 JSON 导出恢复、平滑重启（**不含**远端版本检查与自动升级）。
 
 ---
 
@@ -115,16 +115,15 @@ git clone https://github.com/wenbin-wb/dsh-bridge.git
 dsh plugin --profile web add ./dsh-bridge
 ```
 
-### 升级至最新版
+### 更新方式（手动）
+
+> **本插件不提供远端更新**：不会检查 npm 上的新版本，也没有「一键升级」——面板里只显示**你本机当前使用的版本**。
+
+更新请手动替换到你自己的版本，例如从源码重新安装后重启 DSH：
 
 ```bash
-# 方式一：在设置页「远程访问」底部点击「🚀 一键升级到最新版并重启」（推荐，全自动）
-
-# 方式二：终端强制覆盖安装最新版
-dsh plugin --profile web add @wenbin_wb/dsh-bridge@latest
+dsh plugin --profile web add /path/to/your/dsh-bridge
 ```
-
-> 💡 **提示（pnpm 11 用户）**：如果升级后仍显示旧版，是由于 pnpm 11 的 `minimumReleaseAge` 机制限制。在 Web 控制台点击「一键升级」即可自动跳过限制安装最新版。
 
 ### DSH Desktop 桌面版安装
 
