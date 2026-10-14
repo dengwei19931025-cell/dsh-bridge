@@ -737,7 +737,13 @@ export const MOBILE_STYLES_CSS = `
         background: var(--dsw-alias-bg-layer-2, #f4f4f7) !important;
       }
 
-      /* 输入框底部工具栏：弹性自适应，彻底杜绝权限选择器(Full access)与模型选择器重叠碰撞 */
+      /* 输入框底部工具栏：弹性自适应，彻底杜绝权限选择器(Full access)与模型选择器重叠碰撞
+         ⚠️ 右侧「模型 / 思考强度 / 发送」这三件必须**永不压缩**（实测过一次回归）：
+         它们同属 trailing；模板里 trailing 可收缩、而左侧 tools/modes 是 flex:0 0 auto，
+         于是窄屏下空间全被左侧吃掉，宿主容器 standardControls 被压到 0–18px ——
+         模型标签被压成 16px，而**思考强度按钮是固定 33px 压不下去**，就溢出到行外、
+         在 320/360 下甚至跑到输入卡片之外并盖住发送按钮（iPhone 320–414 全中）。
+         修法：让右侧按内容定宽（不收缩），把"让位"交给左侧权限区横滑。 */
       div[class*="__F_COMPOSER__row"] {
         display: flex !important;
         align-items: center !important;
@@ -752,16 +758,22 @@ export const MOBILE_STYLES_CSS = `
         display: flex !important;
         align-items: center !important;
         gap: 6px !important;
-        flex: 0 0 auto !important;
+        flex: 1 1 auto !important;
         min-width: 0 !important;
+        overflow: hidden !important;
       }
 
       div[class*="__F_COMPOSER__modes"] {
         display: flex !important;
         align-items: center !important;
         gap: 4px !important;
-        flex: 0 0 auto !important;
+        flex: 1 1 auto !important;
         min-width: 0 !important;
+        overflow-x: auto !important;
+        scrollbar-width: none !important;
+      }
+      div[class*="__F_COMPOSER__modes"]::-webkit-scrollbar {
+        display: none !important;
       }
 
       button[class*="__F_ACCESS__trigger"] {
@@ -774,8 +786,9 @@ export const MOBILE_STYLES_CSS = `
         align-items: center !important;
         justify-content: flex-end !important;
         gap: 6px !important;
-        flex: 1 1 auto !important;
-        min-width: 0 !important;
+        /* ⚠️ 0 0 auto + min-width:max-content：绝不收缩，见本段顶部说明 */
+        flex: 0 0 auto !important;
+        min-width: max-content !important;
       }
 
       div[class*="__F_MODEL__root"] {

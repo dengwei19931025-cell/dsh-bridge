@@ -762,7 +762,13 @@ var MOBILE_STYLES_CSS = `
         background: var(--dsw-alias-bg-layer-2, #f4f4f7) !important;
       }
 
-      /* \u8F93\u5165\u6846\u5E95\u90E8\u5DE5\u5177\u680F\uFF1A\u5F39\u6027\u81EA\u9002\u5E94\uFF0C\u5F7B\u5E95\u675C\u7EDD\u6743\u9650\u9009\u62E9\u5668(Full access)\u4E0E\u6A21\u578B\u9009\u62E9\u5668\u91CD\u53E0\u78B0\u649E */
+      /* \u8F93\u5165\u6846\u5E95\u90E8\u5DE5\u5177\u680F\uFF1A\u5F39\u6027\u81EA\u9002\u5E94\uFF0C\u5F7B\u5E95\u675C\u7EDD\u6743\u9650\u9009\u62E9\u5668(Full access)\u4E0E\u6A21\u578B\u9009\u62E9\u5668\u91CD\u53E0\u78B0\u649E
+         \u26A0\uFE0F \u53F3\u4FA7\u300C\u6A21\u578B / \u601D\u8003\u5F3A\u5EA6 / \u53D1\u9001\u300D\u8FD9\u4E09\u4EF6\u5FC5\u987B**\u6C38\u4E0D\u538B\u7F29**\uFF08\u5B9E\u6D4B\u8FC7\u4E00\u6B21\u56DE\u5F52\uFF09\uFF1A
+         \u5B83\u4EEC\u540C\u5C5E trailing\uFF1B\u6A21\u677F\u91CC trailing \u53EF\u6536\u7F29\u3001\u800C\u5DE6\u4FA7 tools/modes \u662F flex:0 0 auto\uFF0C
+         \u4E8E\u662F\u7A84\u5C4F\u4E0B\u7A7A\u95F4\u5168\u88AB\u5DE6\u4FA7\u5403\u6389\uFF0C\u5BBF\u4E3B\u5BB9\u5668 standardControls \u88AB\u538B\u5230 0\u201318px \u2014\u2014
+         \u6A21\u578B\u6807\u7B7E\u88AB\u538B\u6210 16px\uFF0C\u800C**\u601D\u8003\u5F3A\u5EA6\u6309\u94AE\u662F\u56FA\u5B9A 33px \u538B\u4E0D\u4E0B\u53BB**\uFF0C\u5C31\u6EA2\u51FA\u5230\u884C\u5916\u3001
+         \u5728 320/360 \u4E0B\u751A\u81F3\u8DD1\u5230\u8F93\u5165\u5361\u7247\u4E4B\u5916\u5E76\u76D6\u4F4F\u53D1\u9001\u6309\u94AE\uFF08iPhone 320\u2013414 \u5168\u4E2D\uFF09\u3002
+         \u4FEE\u6CD5\uFF1A\u8BA9\u53F3\u4FA7\u6309\u5185\u5BB9\u5B9A\u5BBD\uFF08\u4E0D\u6536\u7F29\uFF09\uFF0C\u628A"\u8BA9\u4F4D"\u4EA4\u7ED9\u5DE6\u4FA7\u6743\u9650\u533A\u6A2A\u6ED1\u3002 */
       div[class*="__F_COMPOSER__row"] {
         display: flex !important;
         align-items: center !important;
@@ -777,16 +783,22 @@ var MOBILE_STYLES_CSS = `
         display: flex !important;
         align-items: center !important;
         gap: 6px !important;
-        flex: 0 0 auto !important;
+        flex: 1 1 auto !important;
         min-width: 0 !important;
+        overflow: hidden !important;
       }
 
       div[class*="__F_COMPOSER__modes"] {
         display: flex !important;
         align-items: center !important;
         gap: 4px !important;
-        flex: 0 0 auto !important;
+        flex: 1 1 auto !important;
         min-width: 0 !important;
+        overflow-x: auto !important;
+        scrollbar-width: none !important;
+      }
+      div[class*="__F_COMPOSER__modes"]::-webkit-scrollbar {
+        display: none !important;
       }
 
       button[class*="__F_ACCESS__trigger"] {
@@ -799,8 +811,9 @@ var MOBILE_STYLES_CSS = `
         align-items: center !important;
         justify-content: flex-end !important;
         gap: 6px !important;
-        flex: 1 1 auto !important;
-        min-width: 0 !important;
+        /* \u26A0\uFE0F 0 0 auto + min-width:max-content\uFF1A\u7EDD\u4E0D\u6536\u7F29\uFF0C\u89C1\u672C\u6BB5\u9876\u90E8\u8BF4\u660E */
+        flex: 0 0 auto !important;
+        min-width: max-content !important;
       }
 
       div[class*="__F_MODEL__root"] {
