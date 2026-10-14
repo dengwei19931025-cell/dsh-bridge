@@ -129,6 +129,15 @@ test('三段合成一条连续胶囊：同底色同高、首尾相接，只在�
   assert.match(corner[1], /border-radius:\s*0 7px 7px 0\s*!important/, '右端：左侧直角、右侧圆角');
   assert.match(tabs[1], /border-radius:\s*0\s*!important/, '中段标签组必须去圆角（成为胶囊中段）');
   assert.match(tabs[1], /opacity:\s*1\s*!important/, '标签行常显（触屏没有 hover）');
+  // 垂直对齐：皮肤给标签行加过 translateY（实测 4px，来自 --dsh-view-tabs-shift），
+  // 不清掉它标签行就会比左右两段低 4px；三段还必须都显式 align-self: center。
+  assert.match(tabs[1], /transform:\s*none\s*!important/,
+    '标签行必须清掉 transform：皮肤 dsh-claude-style 会给它加 translateY（实测 4px），'
+    + '单行化后会让它比左右两段低一截');
+  for (const [name, r] of [['工具组', utils], ['标签组', tabs], ['角标', corner]]) {
+    assert.match(r[1], /align-self:\s*center\s*!important/,
+      `${name}必须显式 align-self: center（宿主给标签行的是 flex-start，不写就会各贴一边）`);
+  }
   // ⌄ 并入胶囊后要与标签同规格，不再是白色圆钮
   const fold = source.match(/div\[class\*="__F_CONV__headerUtilities"\]\s+\.dsh-header-fold-btn\s*\{([^}]*)\}/);
   assert.ok(fold, '必须有一条"胶囊内 ⌄"规则，且选择器要带父级（见下）');

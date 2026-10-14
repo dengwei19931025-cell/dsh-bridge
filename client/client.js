@@ -567,6 +567,7 @@ var MOBILE_STYLES_CSS = `
         background: rgba(0, 0, 0, 0.08) !important;
         display: flex !important;
         align-items: center !important;
+        align-self: center !important;
       }
       div[class*="__F_CONV__headerCorner"] button {
         width: 22px !important;
@@ -588,14 +589,24 @@ var MOBILE_STYLES_CSS = `
         background: rgba(0, 0, 0, 0.08) !important;
         display: flex !important;
         align-items: center !important;
+        align-self: center !important;
       }
-      /* \u4E2D\u95F4\u7684\u6807\u7B7E\u7EC4\uFF1A\u53BB\u6389\u81EA\u8EAB\u5706\u89D2\uFF0C\u6210\u4E3A\u80F6\u56CA\u4E2D\u6BB5 */
+      /* \u4E2D\u95F4\u7684\u6807\u7B7E\u7EC4\uFF1A\u53BB\u6389\u81EA\u8EAB\u5706\u89D2\uFF0C\u6210\u4E3A\u80F6\u56CA\u4E2D\u6BB5\u3002
+         \u26A0\uFE0F \u5FC5\u987B\u540C\u65F6\u6E05\u6389 transform\uFF1A\u76AE\u80A4 dsh-claude-style \u4F1A\u7ED9\u6807\u7B7E\u884C\u52A0
+         transform: translateY(var(--dsh-view-tabs-shift))\uFF08\u8BE5\u53D8\u91CF\u7531\u5B83\u7684 JS \u52A8\u6001\u7B97\u51FA\uFF0C
+         \u5B9E\u6D4B 4px\uFF09\uFF0C\u7528\u4E8E\u5B83\u5728\u5BBF\u4E3B"\u4E24\u884C\u5E03\u5C40"\u4E0B\u7684\u5BF9\u9F50\uFF1B\u5355\u884C\u5316\u540E\u8FD9 4px \u4F1A\u8BA9\u6807\u7B7E\u884C\u6BD4
+         \u5DE6\u53F3\u4E24\u6BB5**\u4F4E 4px**\uFF08\u5B9E\u6D4B\u4E2D\u5FC3 73 vs 69\uFF09\u3002\u53EA\u8986\u76D6 transform \u5C5E\u6027\u3001\u4E0D\u53BB\u52A8\u90A3\u4E2A
+         CSS \u53D8\u91CF \u2014\u2014 \u53D8\u91CF\u662F\u76AE\u80A4\u7B97\u7684\uFF0C\u8DDF\u5B83\u4E89\u6CA1\u6709\u610F\u4E49\u3002
+         \u26A0\uFE0F align-self \u4E5F\u8981\u663E\u5F0F\u5199\uFF1A\u5BBF\u4E3B\u7ED9\u6807\u7B7E\u884C\u7684\u662F flex-start\uFF0C\u53E6\u4E24\u6BB5\u662F auto\uFF0C
+         \u4E0D\u5199\u5C31\u4F1A\u51FA\u73B0"\u4E09\u6BB5\u5404\u81EA\u8D34\u4E0D\u540C\u8FB9"\u7684\u5BF9\u9F50\u5DEE\u5F02\u3002 */
       div[class*="__F_CONV__tabs"] {
         grid-column: 4 !important;
         grid-row: 1 !important;
         margin: 0 !important;
         opacity: 1 !important;
         border-radius: 0 !important;
+        transform: none !important;
+        align-self: center !important;
       }
       /* \u6298\u53E0\u6309\u94AE\uFF08\u2304\uFF09\u5E76\u5165\u80F6\u56CA\u540E\u8981\u53D8\u6210\u4E0E\u6807\u7B7E\u540C\u89C4\u683C\u7684\u56FE\u6807\u4F4D\uFF0C\u4E0D\u518D\u662F\u767D\u8272\u5706\u94AE\u3002
          \u26A0\uFE0F \u9009\u62E9\u5668\u5FC5\u987B\u5E26\u4E0A\u7236\u7EA7\uFF08\u5DE5\u5177\u7EC4\uFF09\u63D0\u5347\u6743\u91CD\uFF1A\u6587\u4EF6\u540E\u9762\u8FD8\u6709\u4E00\u6761\u540C\u540D\u7684

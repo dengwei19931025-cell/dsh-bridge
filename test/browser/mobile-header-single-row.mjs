@@ -164,6 +164,24 @@ const measure = () => page.evaluate(() => {
   const barL = Math.min(segs.utilities?.l ?? Infinity, segs.tabs?.l ?? Infinity, segs.corner?.l ?? Infinity);
   const barR = Math.max(segs.utilities?.r ?? -Infinity, segs.tabs?.r ?? -Infinity, segs.corner?.r ?? -Infinity);
   const barCenter = (barL + barR) / 2;
+
+  // 上下整齐：三段的顶边与垂直中心极差（含 top/bottom，故 seg 也要带上）
+  const vseg = (el) => {
+    if (!el) return null;
+    const s = getComputedStyle(el);
+    const b = el.getBoundingClientRect();
+    return { top: Math.round(b.top * 10) / 10, center: Math.round((b.top + b.height / 2) * 10) / 10, w: Math.round(b.width), bg: s.backgroundColor, radius: s.borderRadius, h: Math.round(b.height) };
+  };
+  const vsegs = {
+    utilities: vseg(document.querySelector('div[class*="_headerUtilities"]')),
+    tabs: vseg(tabs),
+    corner: vseg(corner),
+  };
+  const segTops = Object.values(vsegs).filter(Boolean).map((v) => v.top);
+  const segCenters = Object.values(vsegs).filter(Boolean).map((v) => v.center);
+  const segAlignSpread = (segTops.length === 3)
+    ? Math.round((Math.max(...segTops) - Math.min(...segTops)) * 10) / 10
+    : null;
   return {
     found: true,
     viewport: `${window.innerWidth}x${window.innerHeight}`,
@@ -198,6 +216,14 @@ const measure = () => page.evaluate(() => {
     barCenter: Math.round(barCenter),
     contentCenter: Math.round(contentCenter),
     centeringOffset: Math.round(barCenter - contentCenter),
+    segTops,
+    segCenters,
+    segAlignSpread,
+    segRows: {
+      utilities: cs(document.querySelector('div[class*="_headerUtilities"]'), 'gridRowStart'),
+      tabs: cs(tabs, 'gridRowStart'),
+      corner: cs(corner, 'gridRowStart'),
+    },
   };
 });
 
@@ -247,10 +273,14 @@ if (!geo.found) {
   } else {
     skip('手机端隐藏头部「模式胶囊」', '当前会话没有渲染该胶囊');
   }
-  say('titleRow 已让位（display:contents），三个子元素都排在第 1 行',
+  say('titleRow 已让位（display:contents），三段都落在第 1 行',
     geo.titleRowDisplay === 'contents'
-      && [geo.cluster, geo.fold, geo.tabs, geo.corner].every((b) => b && Math.abs(b.t - geo.tabs.t) <= 10),
-    `titleRow.display=${geo.titleRowDisplay} cluster.t=${geo.cluster?.t} fold.t=${geo.fold?.t} tabs.t=${geo.tabs.t} corner.t=${geo.corner?.t}`);
+      && [geo.segRows?.utilities, geo.segRows?.tabs, geo.segRows?.corner].every((r) => r === '1'),
+    `titleRow.display=${geo.titleRowDisplay} rows=${JSON.stringify(geo.segRows)}`);
+  // 上下整齐：三段（工具组/标签组/角标）的顶边与垂直中心都必须一致。
+  // 容差 1px —— 上一版这里放的是 10px，结果皮肤给标签行加的 translateY(4px) 被漏过去了。
+  say('胶囊内三段上下整齐（顶边与中心极差 ≤ 1px）', geo.segAlignSpread !== null && geo.segAlignSpread <= 1,
+    `tops=${JSON.stringify(geo.segTops)} centers=${JSON.stringify(geo.segCenters)} spread=${geo.segAlignSpread}px`);
   say('⌄（输入框折叠按钮）被保留', !!geo.fold && geo.foldDisplay !== 'none',
     `display=${geo.foldDisplay} rect=${geo.fold ? geo.fold.l + '..' + geo.fold.r : 'null'}`);
   if (geo.more) {

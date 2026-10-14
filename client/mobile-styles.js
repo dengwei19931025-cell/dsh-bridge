@@ -542,6 +542,7 @@ export const MOBILE_STYLES_CSS = `
         background: rgba(0, 0, 0, 0.08) !important;
         display: flex !important;
         align-items: center !important;
+        align-self: center !important;
       }
       div[class*="__F_CONV__headerCorner"] button {
         width: 22px !important;
@@ -563,14 +564,24 @@ export const MOBILE_STYLES_CSS = `
         background: rgba(0, 0, 0, 0.08) !important;
         display: flex !important;
         align-items: center !important;
+        align-self: center !important;
       }
-      /* 中间的标签组：去掉自身圆角，成为胶囊中段 */
+      /* 中间的标签组：去掉自身圆角，成为胶囊中段。
+         ⚠️ 必须同时清掉 transform：皮肤 dsh-claude-style 会给标签行加
+         transform: translateY(var(--dsh-view-tabs-shift))（该变量由它的 JS 动态算出，
+         实测 4px），用于它在宿主"两行布局"下的对齐；单行化后这 4px 会让标签行比
+         左右两段**低 4px**（实测中心 73 vs 69）。只覆盖 transform 属性、不去动那个
+         CSS 变量 —— 变量是皮肤算的，跟它争没有意义。
+         ⚠️ align-self 也要显式写：宿主给标签行的是 flex-start，另两段是 auto，
+         不写就会出现"三段各自贴不同边"的对齐差异。 */
       div[class*="__F_CONV__tabs"] {
         grid-column: 4 !important;
         grid-row: 1 !important;
         margin: 0 !important;
         opacity: 1 !important;
         border-radius: 0 !important;
+        transform: none !important;
+        align-self: center !important;
       }
       /* 折叠按钮（⌄）并入胶囊后要变成与标签同规格的图标位，不再是白色圆钮。
          ⚠️ 选择器必须带上父级（工具组）提升权重：文件后面还有一条同名的
