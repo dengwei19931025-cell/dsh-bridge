@@ -70,22 +70,70 @@ test('作用范围：必须限定在 max-width:767px 内（电脑端一个像素
     '不得写成 min-width（那会落到桌面端——上一版就是这么错的，已被 revert）');
 });
 
-test('规则存在：头部补出「间隔列 + 标签列」，标签行被提到第一行最后一列', () => {
+test('布局：五列网格 + titleRow 让位 + 三个子元素**全部**显式落格', () => {
   assert.ok(headerRule, '必须有一条 :has() 自限的头部规则');
   const decls = headerRule[1];
   const cols = decls.match(/grid-template-columns:\s*([^;]+);/);
   assert.ok(cols, '头部规则必须重写 grid-template-columns');
-  const tracks = cols[1].replace(/!important/, '').trim().split(/\s+/);
-  assert.deepEqual(tracks.slice(0, 2), ['auto', 'minmax(0,'],
+  const tracks = cols[1].replace(/!important/, '')
+    .replace(/minmax\(\s*([^,]+),\s*([^)]+)\)/g, 'minmax($1,$2)')   // 去掉函数内空格，避免被按空白切开
+    .trim().split(/\s+/);
+  // 前导 | 标题簇(1fr) | 工具组(⌄) | 标签组 | 角标(▯)
+  assert.equal(tracks.length, 5, `必须是五列（前导/标题簇/工具组/标签组/角标），实际：${cols[1]}`);
+  assert.deepEqual(tracks.slice(0, 2), ['auto', 'minmax(0,1fr)'],
     `前两列必须保持宿主的 auto / minmax(0,1fr)，实际：${cols[1]}`);
-  // 关键：倒数第二列是间隔列，必须能吸收 headerCorner 的 -16px 外边距
-  const spacerPx = Number(((tracks[tracks.length - 2] || '').match(/^(\d+)px$/) || [])[1]);
-  assert.ok(Number.isFinite(spacerPx), `倒数第二列必须是固定 px 间隔列，实际：${tracks[tracks.length - 2]}`);
-  assert.ok(spacerPx >= 16,
-    `间隔列必须 ≥16px：右上角图标组自带 margin-inline-end:-16px，两行布局时压的是空白，`
-    + `单行化后会压到标签行上（桌面版实测重叠 16px）。当前 ${spacerPx}px`);
   assert.match(decls, /min-height:\s*0\s*!important/,
-    '必须归零宿主的 min-height:76px——那 76px 就是"两行"的高度，省下 37px 全靠它');
+    '必须归零宿主的 min-height:76px —— 那 76px 就是"两行"的高度，省下约 40px 全靠它');
+
+  // titleRow 让位（否则它的子元素角标不可能排到标签组后面）
+  assert.match(rendered, /div\[class\*="[A-Za-z0-9_-]+_titleRow"\]\s*\{\s*display:\s*contents\s*!important/,
+    'titleRow 必须改 display:contents：角标是它的子元素，不这样无法排到标签组之后');
+
+  // 关键回归守卫：三个子元素漏掉任何一个，它都会自动落进下一行（实测 header 被撑到 65px）
+  const placements = {
+    titleCluster: 2,
+    headerUtilities: 3,
+    tabs: 4,
+    headerCorner: 5,
+  };
+  for (const [local, col] of Object.entries(placements)) {
+    const rule = rendered.match(new RegExp(`div\\[class\\*="[A-Za-z0-9_-]+_${local}"\\]\\s*\\{([^}]*)\\}`));
+    assert.ok(rule, `${local} 必须有自己的落格规则`);
+    assert.match(rule[1], new RegExp(`grid-column:\\s*${col}\\s*!important`), `${local} 必须落在第 ${col} 列`);
+    assert.match(rule[1], /grid-row:\s*1\s*!important/, `${local} 必须落在第 1 行`);
+  }
+  // ⌄ 是用户明确要保留的：工具组不得被藏掉
+  const utilsRule = rendered.match(/div\[class\*="[A-Za-z0-9_-]+_headerUtilities"\]\s*\{([^}]*)\}/);
+  assert.doesNotMatch(utilsRule[1], /display:\s*none/,
+    '工具组（⌄ 输入框折叠按钮所在处）必须保留——用户明确要求只隐藏 ⋯');
+});
+
+test('角标（右侧边栏）：排到标签组之后，并与标签组同款渲染', () => {
+  const cornerRule = rendered.match(/div\[class\*="[A-Za-z0-9_-]+_headerCorner"\]\s*\{([^}]*)\}/);
+  assert.ok(cornerRule, '必须有角标规则');
+  const d = cornerRule[1];
+  assert.match(d, /grid-column:\s*5\s*!important/, '角标必须落在最后一列（标签组之后）');
+  // 与标签组同款：灰底条 / 7px 圆角 / 总高 26px（内容盒 22 + 2×2 内衬）/ 2px 间距
+  assert.match(d, /background:\s*rgba\(0,\s*0,\s*0,\s*0\.08\)\s*!important/, '角标底色必须与标签组一致');
+  assert.match(d, /border-radius:\s*7px\s*!important/, '角标圆角必须与标签组一致');
+  assert.match(d, /height:\s*22px\s*!important/, '角标高度要写内容盒 22px（+2×2 内衬 = 26px）');
+  assert.match(d, /padding:\s*2px\s*!important/, '角标内衬必须与标签组一致');
+  assert.match(d, /margin:\s*0 0 0 2px\s*!important/, '与标签组的间距必须与标签之间的间距一致（2px）');
+  // 真正"渲染成一样"由浏览器套件比对计算样式（底色/圆角/高度三项相等）；这里只守配方。
+});
+
+test('手机端隐藏「更多操作」(⋯)，但保留 ⌄', () => {
+  const moreIdx = cssNoComment.indexOf('button[class*="__F_LOG__moreButton"]');
+  assert.ok(moreIdx > 0, '源码里找不到隐藏 ⋯ 的规则（占位符写法被改？）');
+  const blocks = enclosingBlocks(cssNoComment, moreIdx);
+  assert.equal(blocks.length, 1, `隐藏 ⋯ 的规则应当只被一层块包住，实际：${JSON.stringify(blocks)}`);
+  assert.match(blocks[0], /^@media\s*\(max-width:\s*767px\)$/, '隐藏 ⋯ 必须限定手机端');
+  assert.match(rendered, /button\[class\*="[A-Za-z0-9_-]+_moreButton"\]\s*\{\s*display:\s*none\s*!important/,
+    '⋯ 必须在手机端 display:none');
+  assert.ok(FAMILY_SLOTS.LOG.locals.includes('moreButton'),
+    'LOG 槽位必须收录 moreButton（与 sessionLogButton 同族，0.2.0 实测 nL4_yW_moreButton）');
+  assert.doesNotMatch(source, /dsh-header-fold-btn[^{]*\{[^}]*display:\s*none/,
+    '⌄（本插件的输入框折叠按钮）不得被藏掉——用户明确保留它');
 });
 
 test('标签行：落在第一行最后一列、常显、且不得用内部偏移挪位置', () => {

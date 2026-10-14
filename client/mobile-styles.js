@@ -497,35 +497,72 @@ export const MOBILE_STYLES_CSS = `
         margin: 0 !important;
       }
 
-      /* ── 会话头部单行化（仅手机端）：把「对话 / 轨迹 / 上下文 / 编队」标签行并进上一行 ──
+      /* ── 会话头部单行化 + 把右侧边栏挪到「编队」之后（仅手机端）────────────────────
          现状（宿主 dsh-client-ui-conversation 自带规则，不是第三方插件加的）：
          .<F>_header 在手机端仍是两行 grid、min-height 76px —— 第 1 行 .<F>_titleRow
-         （面包屑标题已被本插件在移动端隐藏，只剩右侧 actions + 右上角图标组），
-         第 2 行 .<F>_tabs。实测 433px：页面 y 52..128 全是它（0..52 是本插件自绘的
-         移动顶栏），合并后 39px，**省 37px**。
+         （面包屑标题已被本插件在移动端隐藏），第 2 行 .<F>_tabs。实测 433px：页面
+         y 52..128 全是它（0..52 是本插件自绘的移动顶栏），合并后 37px，**省约 40px**。
 
-         ⚠️ 为什么必须留一列 28px 间隔列：右上角图标组 .<F>_headerCorner 带
-         margin-inline-end: -16px（宿主/皮肤把它塞进头部右内边距）。两行布局下它压的是
-         空白，单行化后会压到标签行上（桌面版实测重叠 16px），间隔列把这 16px 吸收掉，
-         并留出 12px 视觉间距。
-         ⚠️ 为什么只用网格列、绝不动标签行自身的 border/padding：皮肤 dsh-claude-style
-         按标签行的**盒内坐标**画高亮药丸，内部偏移会让药丸错位。
-         ⚠️ 电脑端一律不生效：本块在 @media (max-width:767px) 内，桌面保持宿主两行原样。
+         目标排布（从左到右）：[标题簇] … [工具组 ⌄] [标签组 对话|轨迹|上下文|编队] [角标 ▯]
+                                  ↑ 1fr 吸收空隙            ↑ 角标要落在最后（用户指定"放在编队后面"）
 
-         标签可见性：皮肤把标签行设成「悬停才显形」——body[data-dsh-claude-style]
-         [data-dsh-view-tabs] 给 opacity:0，再靠 … [class*=centerCol]:hover 置 1；
-         而触屏没有真正的 hover（iOS 需点一下对话区才亮，实测 opacity 0 → 点击后 1）。
-         手机端按"常显"处理，否则合并后那一行看起来是空的。 */
+         ⚠️ 角标为什么必须"越过 titleRow"：.<F>_headerCorner 是 .<F>_titleRow 的**子元素**，
+         子元素不可能排到 titleRow 之后的网格列里。故把 titleRow 改成 display:contents
+         （它自己不生成盒子），三个子元素就直接成为 header 的网格项，再逐个显式落格。
+         ⚠️ 三个子元素必须**全部**显式定位：漏掉任何一个，它都会自动落进下一行 ——
+         实测漏掉 headerUtilities 时 header 被撑到 65px、⌄ 掉到第二行。
+         ⚠️ 角标的高度要写内容盒 22px（+ 2×2 内衬 = 26px），与标签组同高；写成 26px 会
+         变成 30px（宿主页面不是 border-box）。
+         ⚠️ 电脑端一律不生效：本块在 @media (max-width:767px) 内。
+         ⚠️ 标签行自身只改网格列位置与 opacity，绝不动它的 border/padding：皮肤
+         dsh-claude-style 按它的盒内坐标画高亮药丸，内部偏移会让药丸错位。 */
       header[class*="__F_CONV__header"]:has(div[class*="__F_CONV__tabs"]) {
-        grid-template-columns: auto minmax(0, 1fr) 28px auto !important;
+        grid-template-columns: auto minmax(0, 1fr) auto auto auto !important;
         min-height: 0 !important;
         align-items: center !important;
+      }
+      div[class*="__F_CONV__titleRow"] {
+        display: contents !important;
+      }
+      div[class*="__F_CONV__titleCluster"] {
+        grid-column: 2 !important;
+        grid-row: 1 !important;
+        min-width: 0 !important;
+      }
+      div[class*="__F_CONV__headerUtilities"] {
+        grid-column: 3 !important;
+        grid-row: 1 !important;
+        margin-left: 0 !important;
       }
       div[class*="__F_CONV__tabs"] {
         grid-column: 4 !important;
         grid-row: 1 !important;
         margin: 0 !important;
         opacity: 1 !important;
+      }
+      /* 角标 = 右侧边栏开关，渲染成与标签组同款（灰底条 / 7px 圆角 / 26px 总高 / 2px 间距） */
+      div[class*="__F_CONV__headerCorner"] {
+        grid-column: 5 !important;
+        grid-row: 1 !important;
+        margin: 0 0 0 2px !important;
+        height: 22px !important;
+        padding: 2px !important;
+        border-radius: 7px !important;
+        background: rgba(0, 0, 0, 0.08) !important;
+        display: flex !important;
+        align-items: center !important;
+      }
+      div[class*="__F_CONV__headerCorner"] button {
+        width: 22px !important;
+        height: 22px !important;
+        border-radius: 5px !important;
+      }
+
+      /* 手机端隐藏「更多操作」(⋯)：它下面挂的都是桌面向操作；工具组里只留本插件的
+         输入框折叠按钮（⌄）。localMore 与 localSessionLog 同属 LOG 族（0.2.0 实测
+         nL4_yW_moreButton），故走 __F_LOG__ 占位符 + 运行时探测/基线兜底。 */
+      button[class*="__F_LOG__moreButton"] {
+        display: none !important;
       }
 
       /* 手机端隐藏两个"只对电脑有意义"的头部按钮：

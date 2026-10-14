@@ -91,6 +91,8 @@ const measure = () => page.evaluate(() => {
     .find((b) => re.test(b.getAttribute('aria-label') || '')) || null;
   const jobs = byLabel(/后台任务|background jobs? running/i);
   const fileOpen = byLabel(/用 .{1,12}打开|Open in /);
+  const more = byLabel(/更多操作|More actions/i);
+  const fold = document.querySelector('.dsh-header-fold-btn');
   const hiddenInfo = (el) => (el ? {
     label: el.getAttribute('aria-label'),
     display: getComputedStyle(el).display,
@@ -122,6 +124,18 @@ const measure = () => page.evaluate(() => {
   const c = rect(corner);
   const t = rect(tabs);
   const tr = rect(titleRow);
+  const cluster = rect(document.querySelector('div[class*="_titleCluster"]'));
+  const foldBox = rect(fold);
+  const moreInfo = hiddenInfo(more);
+  // "渲染成一样的"：拿角标与标签组的计算样式逐项对比（底色 / 圆角 / 总高）
+  const lookOf = (el) => {
+    if (!el) return null;
+    const s = getComputedStyle(el);
+    const b = el.getBoundingClientRect();
+    return { bg: s.backgroundColor, radius: s.borderRadius, height: Math.round(b.height) };
+  };
+  const tabsLook = lookOf(tabs);
+  const cornerLook = lookOf(corner);
   return {
     found: true,
     viewport: `${window.innerWidth}x${window.innerHeight}`,
@@ -129,6 +143,10 @@ const measure = () => page.evaluate(() => {
     headerMinHeight: cs(header, 'minHeight'),
     headerCols: cs(header, 'gridTemplateColumns'),
     titleRow: tr,
+    titleRowDisplay: cs(titleRow, 'display'),
+    cluster,
+    fold: foldBox,
+    foldDisplay: cs(fold, 'display'),
     corner: c,
     tabs: t,
     tabsOpacity: cs(tabs, 'opacity'),
@@ -138,11 +156,19 @@ const measure = () => page.evaluate(() => {
     tabLabels: [...tabs.children].map((b) => (b.textContent || '').trim()),
     overlapCornerTabs: (c && t) ? Math.max(0, Math.min(c.r, t.r) - Math.max(c.l, t.l)) : null,
     cornerToTabsGap: (c && t) ? t.l - c.r : null,
+    cornerAfterTabs: (c && t) ? c.l >= t.r - 1 : null,
     // 内容右边界 = 视口宽 - 头部右内边距(16px)
     overflowRight: t.r - (window.innerWidth - 16),
+    more: moreInfo,
     jobs: hiddenInfo(jobs),
     fileOpen: hiddenInfo(fileOpen),
     leftoverDividers,
+    tabsLook,
+    cornerLook,
+    lookMatches: !!(tabsLook && cornerLook)
+      && tabsLook.bg === cornerLook.bg
+      && tabsLook.radius === cornerLook.radius
+      && tabsLook.height === cornerLook.height,
   };
 });
 
@@ -162,18 +188,32 @@ if (!geo.found) {
   console.log(`INFO  titleRow=${geo.titleRow.l}..${geo.titleRow.r} corner=${geo.corner?.l}..${geo.corner?.r} tabs=${geo.tabs.l}..${geo.tabs.r}`);
 
   say('手机端头部已从两行收成一行（< 50px，两行时实测 76px）', geo.header.h < 50, `h=${geo.header.h}`);
-  say('网格补出了间隔列 + 标签列（≥4 列）', geo.headerCols.split(' ').length >= 4, geo.headerCols);
-  say('标签行与标题行同排（垂直中心差 ≤ 8px）',
-    Math.abs((geo.tabs.t + geo.tabs.h / 2) - (geo.titleRow.t + geo.titleRow.h / 2)) <= 8,
-    `tabs.c=${geo.tabs.t + geo.tabs.h / 2} titleRow.c=${geo.titleRow.t + geo.titleRow.h / 2}`);
-  say('标签行落在第一行最后一列', geo.tabsColumn === '4' && geo.tabsRow === '1', `column=${geo.tabsColumn} row=${geo.tabsRow}`);
-  // 本套件最重要的一条：角标带 -16px 外边距，必须被间隔列吸收
-  say('右上角图标组没有压住标签行（重叠必须为 0）', geo.overlapCornerTabs === 0, `overlap=${geo.overlapCornerTabs}px gap=${geo.cornerToTabsGap}px`);
-  say('角标与标签行之间留有可见间距', (geo.cornerToTabsGap ?? 0) >= 6, `${geo.cornerToTabsGap}px`);
+  say('网格补出了标题簇/工具组/标签组/角标四列（共 5 轨）',
+    geo.headerCols.split(' ').length >= 5, geo.headerCols);
+  // 注：titleRow 现在是 display:contents（没有自己的盒子），所以"与 titleRow 同排"不再可测；
+  // 改为直接断言三个子元素与标签行都在第 1 行（见下面那条）。
+  say('标签行落在第一行第四列', geo.tabsColumn === '4' && geo.tabsRow === '1', `column=${geo.tabsColumn} row=${geo.tabsRow}`);
   say('标签行常显（触屏没有 hover，opacity 必须为 1）', geo.tabsOpacity === '1', `opacity=${geo.tabsOpacity}`);
   say('标签行没被藏掉', geo.tabsDisplay !== 'none', geo.tabsDisplay);
   say('标签功能完好（4 个标签一个不少）', geo.tabLabels.length === 4, geo.tabLabels.join('/'));
   say('标签行没有溢出内容右边界', geo.overflowRight <= 0, `overflow=${geo.overflowRight}px`);
+  say('右侧边栏开关已排到「编队」之后', geo.cornerAfterTabs === true,
+    `tabs.r=${geo.tabs.r} corner.l=${geo.corner?.l} gap=${geo.cornerToTabsGap}px`);
+  say('角标与标签组没有重叠', geo.overlapCornerTabs === 0, `overlap=${geo.overlapCornerTabs}px`);
+  say('角标与标签组渲染成一样的（底色/圆角/总高逐项相等）', geo.lookMatches,
+    `tabs=${JSON.stringify(geo.tabsLook)} corner=${JSON.stringify(geo.cornerLook)}`);
+  say('titleRow 已让位（display:contents），三个子元素都排在第 1 行',
+    geo.titleRowDisplay === 'contents'
+      && [geo.cluster, geo.fold, geo.tabs, geo.corner].every((b) => b && Math.abs(b.t - geo.tabs.t) <= 10),
+    `titleRow.display=${geo.titleRowDisplay} cluster.t=${geo.cluster?.t} fold.t=${geo.fold?.t} tabs.t=${geo.tabs.t} corner.t=${geo.corner?.t}`);
+  say('⌄（输入框折叠按钮）被保留', !!geo.fold && geo.foldDisplay !== 'none',
+    `display=${geo.foldDisplay} rect=${geo.fold ? geo.fold.l + '..' + geo.fold.r : 'null'}`);
+  if (geo.more) {
+    say('手机端已隐藏「更多操作」(⋯)', geo.more.display === 'none' && !geo.more.visible,
+      `display=${geo.more.display} visible=${geo.more.visible}`);
+  } else {
+    skip('手机端隐藏「更多操作」(⋯)', '当前宿主没有渲染该按钮');
+  }
 
   // 手机端必须隐藏的两个"只对电脑有意义"的按钮（按钮不存在时跳过，例如当前没有后台任务）
   if (geo.jobs) {
@@ -202,9 +242,9 @@ const narrow = await measure();
 if (!narrow.found) {
   skip('390px 小屏复测', '没找到 header/tabs');
 } else {
-  say('390px 同样收成一行且不重叠',
-    narrow.header.h < 50 && narrow.overlapCornerTabs === 0,
-    `h=${narrow.header.h} overlap=${narrow.overlapCornerTabs} gap=${narrow.cornerToTabsGap}`);
+  say('390px 同样收成一行、角标在标签之后且不重叠',
+    narrow.header.h < 50 && narrow.overlapCornerTabs === 0 && narrow.cornerAfterTabs === true,
+    `h=${narrow.header.h} overlap=${narrow.overlapCornerTabs} cornerAfterTabs=${narrow.cornerAfterTabs}`);
 }
 await page.screenshot({ path: path.join(SHOTS, 'mobile-390.png') });
 
@@ -228,6 +268,11 @@ if (!desktop.found) {
     say('电脑端「用文件资源管理器打开」按钮未被隐藏', desktop.fileOpen.display !== 'none', `display=${desktop.fileOpen.display}`);
   } else {
     skip('电脑端「用文件资源管理器打开」按钮未被隐藏', '桌面宽度下该按钮未渲染');
+  }
+  if (desktop.more) {
+    say('电脑端「更多操作」(⋯) 未被隐藏', desktop.more.display !== 'none', `display=${desktop.more.display}`);
+  } else {
+    skip('电脑端「更多操作」(⋯) 未被隐藏', '桌面宽度下该按钮未渲染');
   }
 }
 await page.screenshot({ path: path.join(SHOTS, 'desktop-1280.png') });

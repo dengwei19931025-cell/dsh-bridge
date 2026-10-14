@@ -184,12 +184,12 @@ export const FAMILY_SLOTS = {
     known: ['wCInkW', 'VOzbGW'],
     anchors: [{ local: 'panel', find: settingsPanel }],
   },
-  // 对话区：头部标题行、标签行、右上角图标组、面包屑、滚动体、输入座
-  // （tabs / headerCorner 供「手机端头部单行化」使用：tabs 要被提到标题行同排，
-  //   headerCorner 是右上角图标组，它嵌在 titleRow 内部且带 -16px 右外边距，
-  //   决定了标签只能排在其右侧、且必须留出间隔列）
+  // 对话区：头部标题行、标题簇、标签行、工具组、右上角图标组、面包屑、滚动体、输入座
+  // （手机端"头部单行化 + 把右侧边栏挪到标签行后面"要用到这几个本地名：
+  //   titleRow 改 display:contents 让位，其三个子元素 titleCluster / headerUtilities /
+  //   headerCorner 必须逐个显式落格，tabs 落在它们之间）
   CONV: {
-    locals: ['header', 'titleRow', 'tabs', 'headerCorner', 'headerActions', 'headerUtilities', 'crumbs', 'scrollBody', 'viewArea', 'composerSeat'],
+    locals: ['header', 'titleRow', 'titleCluster', 'tabs', 'headerUtilities', 'headerCorner', 'headerActions', 'crumbs', 'scrollBody', 'viewArea', 'composerSeat'],
     known: ['Dc7zOa', 'wSkVaW'],
     anchors: [{ local: 'header', find: (doc) => doc.querySelector?.('div[class*="_centerCol"] header') || null }],
   },
@@ -235,9 +235,11 @@ export const FAMILY_SLOTS = {
     known: ['_oGoKq', 'cubgiG', 'h8S2Va'],
     anchors: [{ local: 'seat', find: aria(/Agent 预设|Agent preset/) }],
   },
-  // 会话日志导出按钮
+  // 会话日志导出按钮 / 头部「更多操作」(⋯)
+  // moreButton 与 sessionLogButton 同属一个 CSS-module（0.2.0 实测 nL4_yW_moreButton），
+  // 收进 locals 还能反过来帮本槽位在新宿主上完成解析（0.2.0 已无 sessionLogButton 锚点）。
   LOG: {
-    locals: ['sessionLogButton'],
+    locals: ['sessionLogButton', 'moreButton'],
     known: ['nL4_yW'],
     anchors: [{ local: 'sessionLogButton', find: aria(/Session Log|会话日志|导出|Export/i) }],
   },

@@ -522,35 +522,72 @@ var MOBILE_STYLES_CSS = `
         margin: 0 !important;
       }
 
-      /* \u2500\u2500 \u4F1A\u8BDD\u5934\u90E8\u5355\u884C\u5316\uFF08\u4EC5\u624B\u673A\u7AEF\uFF09\uFF1A\u628A\u300C\u5BF9\u8BDD / \u8F68\u8FF9 / \u4E0A\u4E0B\u6587 / \u7F16\u961F\u300D\u6807\u7B7E\u884C\u5E76\u8FDB\u4E0A\u4E00\u884C \u2500\u2500
+      /* \u2500\u2500 \u4F1A\u8BDD\u5934\u90E8\u5355\u884C\u5316 + \u628A\u53F3\u4FA7\u8FB9\u680F\u632A\u5230\u300C\u7F16\u961F\u300D\u4E4B\u540E\uFF08\u4EC5\u624B\u673A\u7AEF\uFF09\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
          \u73B0\u72B6\uFF08\u5BBF\u4E3B dsh-client-ui-conversation \u81EA\u5E26\u89C4\u5219\uFF0C\u4E0D\u662F\u7B2C\u4E09\u65B9\u63D2\u4EF6\u52A0\u7684\uFF09\uFF1A
          .<F>_header \u5728\u624B\u673A\u7AEF\u4ECD\u662F\u4E24\u884C grid\u3001min-height 76px \u2014\u2014 \u7B2C 1 \u884C .<F>_titleRow
-         \uFF08\u9762\u5305\u5C51\u6807\u9898\u5DF2\u88AB\u672C\u63D2\u4EF6\u5728\u79FB\u52A8\u7AEF\u9690\u85CF\uFF0C\u53EA\u5269\u53F3\u4FA7 actions + \u53F3\u4E0A\u89D2\u56FE\u6807\u7EC4\uFF09\uFF0C
-         \u7B2C 2 \u884C .<F>_tabs\u3002\u5B9E\u6D4B 433px\uFF1A\u9875\u9762 y 52..128 \u5168\u662F\u5B83\uFF080..52 \u662F\u672C\u63D2\u4EF6\u81EA\u7ED8\u7684
-         \u79FB\u52A8\u9876\u680F\uFF09\uFF0C\u5408\u5E76\u540E 39px\uFF0C**\u7701 37px**\u3002
+         \uFF08\u9762\u5305\u5C51\u6807\u9898\u5DF2\u88AB\u672C\u63D2\u4EF6\u5728\u79FB\u52A8\u7AEF\u9690\u85CF\uFF09\uFF0C\u7B2C 2 \u884C .<F>_tabs\u3002\u5B9E\u6D4B 433px\uFF1A\u9875\u9762
+         y 52..128 \u5168\u662F\u5B83\uFF080..52 \u662F\u672C\u63D2\u4EF6\u81EA\u7ED8\u7684\u79FB\u52A8\u9876\u680F\uFF09\uFF0C\u5408\u5E76\u540E 37px\uFF0C**\u7701\u7EA6 40px**\u3002
 
-         \u26A0\uFE0F \u4E3A\u4EC0\u4E48\u5FC5\u987B\u7559\u4E00\u5217 28px \u95F4\u9694\u5217\uFF1A\u53F3\u4E0A\u89D2\u56FE\u6807\u7EC4 .<F>_headerCorner \u5E26
-         margin-inline-end: -16px\uFF08\u5BBF\u4E3B/\u76AE\u80A4\u628A\u5B83\u585E\u8FDB\u5934\u90E8\u53F3\u5185\u8FB9\u8DDD\uFF09\u3002\u4E24\u884C\u5E03\u5C40\u4E0B\u5B83\u538B\u7684\u662F
-         \u7A7A\u767D\uFF0C\u5355\u884C\u5316\u540E\u4F1A\u538B\u5230\u6807\u7B7E\u884C\u4E0A\uFF08\u684C\u9762\u7248\u5B9E\u6D4B\u91CD\u53E0 16px\uFF09\uFF0C\u95F4\u9694\u5217\u628A\u8FD9 16px \u5438\u6536\u6389\uFF0C
-         \u5E76\u7559\u51FA 12px \u89C6\u89C9\u95F4\u8DDD\u3002
-         \u26A0\uFE0F \u4E3A\u4EC0\u4E48\u53EA\u7528\u7F51\u683C\u5217\u3001\u7EDD\u4E0D\u52A8\u6807\u7B7E\u884C\u81EA\u8EAB\u7684 border/padding\uFF1A\u76AE\u80A4 dsh-claude-style
-         \u6309\u6807\u7B7E\u884C\u7684**\u76D2\u5185\u5750\u6807**\u753B\u9AD8\u4EAE\u836F\u4E38\uFF0C\u5185\u90E8\u504F\u79FB\u4F1A\u8BA9\u836F\u4E38\u9519\u4F4D\u3002
-         \u26A0\uFE0F \u7535\u8111\u7AEF\u4E00\u5F8B\u4E0D\u751F\u6548\uFF1A\u672C\u5757\u5728 @media (max-width:767px) \u5185\uFF0C\u684C\u9762\u4FDD\u6301\u5BBF\u4E3B\u4E24\u884C\u539F\u6837\u3002
+         \u76EE\u6807\u6392\u5E03\uFF08\u4ECE\u5DE6\u5230\u53F3\uFF09\uFF1A[\u6807\u9898\u7C07] \u2026 [\u5DE5\u5177\u7EC4 \u2304] [\u6807\u7B7E\u7EC4 \u5BF9\u8BDD|\u8F68\u8FF9|\u4E0A\u4E0B\u6587|\u7F16\u961F] [\u89D2\u6807 \u25AF]
+                                  \u2191 1fr \u5438\u6536\u7A7A\u9699            \u2191 \u89D2\u6807\u8981\u843D\u5728\u6700\u540E\uFF08\u7528\u6237\u6307\u5B9A"\u653E\u5728\u7F16\u961F\u540E\u9762"\uFF09
 
-         \u6807\u7B7E\u53EF\u89C1\u6027\uFF1A\u76AE\u80A4\u628A\u6807\u7B7E\u884C\u8BBE\u6210\u300C\u60AC\u505C\u624D\u663E\u5F62\u300D\u2014\u2014body[data-dsh-claude-style]
-         [data-dsh-view-tabs] \u7ED9 opacity:0\uFF0C\u518D\u9760 \u2026 [class*=centerCol]:hover \u7F6E 1\uFF1B
-         \u800C\u89E6\u5C4F\u6CA1\u6709\u771F\u6B63\u7684 hover\uFF08iOS \u9700\u70B9\u4E00\u4E0B\u5BF9\u8BDD\u533A\u624D\u4EAE\uFF0C\u5B9E\u6D4B opacity 0 \u2192 \u70B9\u51FB\u540E 1\uFF09\u3002
-         \u624B\u673A\u7AEF\u6309"\u5E38\u663E"\u5904\u7406\uFF0C\u5426\u5219\u5408\u5E76\u540E\u90A3\u4E00\u884C\u770B\u8D77\u6765\u662F\u7A7A\u7684\u3002 */
+         \u26A0\uFE0F \u89D2\u6807\u4E3A\u4EC0\u4E48\u5FC5\u987B"\u8D8A\u8FC7 titleRow"\uFF1A.<F>_headerCorner \u662F .<F>_titleRow \u7684**\u5B50\u5143\u7D20**\uFF0C
+         \u5B50\u5143\u7D20\u4E0D\u53EF\u80FD\u6392\u5230 titleRow \u4E4B\u540E\u7684\u7F51\u683C\u5217\u91CC\u3002\u6545\u628A titleRow \u6539\u6210 display:contents
+         \uFF08\u5B83\u81EA\u5DF1\u4E0D\u751F\u6210\u76D2\u5B50\uFF09\uFF0C\u4E09\u4E2A\u5B50\u5143\u7D20\u5C31\u76F4\u63A5\u6210\u4E3A header \u7684\u7F51\u683C\u9879\uFF0C\u518D\u9010\u4E2A\u663E\u5F0F\u843D\u683C\u3002
+         \u26A0\uFE0F \u4E09\u4E2A\u5B50\u5143\u7D20\u5FC5\u987B**\u5168\u90E8**\u663E\u5F0F\u5B9A\u4F4D\uFF1A\u6F0F\u6389\u4EFB\u4F55\u4E00\u4E2A\uFF0C\u5B83\u90FD\u4F1A\u81EA\u52A8\u843D\u8FDB\u4E0B\u4E00\u884C \u2014\u2014
+         \u5B9E\u6D4B\u6F0F\u6389 headerUtilities \u65F6 header \u88AB\u6491\u5230 65px\u3001\u2304 \u6389\u5230\u7B2C\u4E8C\u884C\u3002
+         \u26A0\uFE0F \u89D2\u6807\u7684\u9AD8\u5EA6\u8981\u5199\u5185\u5BB9\u76D2 22px\uFF08+ 2\xD72 \u5185\u886C = 26px\uFF09\uFF0C\u4E0E\u6807\u7B7E\u7EC4\u540C\u9AD8\uFF1B\u5199\u6210 26px \u4F1A
+         \u53D8\u6210 30px\uFF08\u5BBF\u4E3B\u9875\u9762\u4E0D\u662F border-box\uFF09\u3002
+         \u26A0\uFE0F \u7535\u8111\u7AEF\u4E00\u5F8B\u4E0D\u751F\u6548\uFF1A\u672C\u5757\u5728 @media (max-width:767px) \u5185\u3002
+         \u26A0\uFE0F \u6807\u7B7E\u884C\u81EA\u8EAB\u53EA\u6539\u7F51\u683C\u5217\u4F4D\u7F6E\u4E0E opacity\uFF0C\u7EDD\u4E0D\u52A8\u5B83\u7684 border/padding\uFF1A\u76AE\u80A4
+         dsh-claude-style \u6309\u5B83\u7684\u76D2\u5185\u5750\u6807\u753B\u9AD8\u4EAE\u836F\u4E38\uFF0C\u5185\u90E8\u504F\u79FB\u4F1A\u8BA9\u836F\u4E38\u9519\u4F4D\u3002 */
       header[class*="__F_CONV__header"]:has(div[class*="__F_CONV__tabs"]) {
-        grid-template-columns: auto minmax(0, 1fr) 28px auto !important;
+        grid-template-columns: auto minmax(0, 1fr) auto auto auto !important;
         min-height: 0 !important;
         align-items: center !important;
+      }
+      div[class*="__F_CONV__titleRow"] {
+        display: contents !important;
+      }
+      div[class*="__F_CONV__titleCluster"] {
+        grid-column: 2 !important;
+        grid-row: 1 !important;
+        min-width: 0 !important;
+      }
+      div[class*="__F_CONV__headerUtilities"] {
+        grid-column: 3 !important;
+        grid-row: 1 !important;
+        margin-left: 0 !important;
       }
       div[class*="__F_CONV__tabs"] {
         grid-column: 4 !important;
         grid-row: 1 !important;
         margin: 0 !important;
         opacity: 1 !important;
+      }
+      /* \u89D2\u6807 = \u53F3\u4FA7\u8FB9\u680F\u5F00\u5173\uFF0C\u6E32\u67D3\u6210\u4E0E\u6807\u7B7E\u7EC4\u540C\u6B3E\uFF08\u7070\u5E95\u6761 / 7px \u5706\u89D2 / 26px \u603B\u9AD8 / 2px \u95F4\u8DDD\uFF09 */
+      div[class*="__F_CONV__headerCorner"] {
+        grid-column: 5 !important;
+        grid-row: 1 !important;
+        margin: 0 0 0 2px !important;
+        height: 22px !important;
+        padding: 2px !important;
+        border-radius: 7px !important;
+        background: rgba(0, 0, 0, 0.08) !important;
+        display: flex !important;
+        align-items: center !important;
+      }
+      div[class*="__F_CONV__headerCorner"] button {
+        width: 22px !important;
+        height: 22px !important;
+        border-radius: 5px !important;
+      }
+
+      /* \u624B\u673A\u7AEF\u9690\u85CF\u300C\u66F4\u591A\u64CD\u4F5C\u300D(\u22EF)\uFF1A\u5B83\u4E0B\u9762\u6302\u7684\u90FD\u662F\u684C\u9762\u5411\u64CD\u4F5C\uFF1B\u5DE5\u5177\u7EC4\u91CC\u53EA\u7559\u672C\u63D2\u4EF6\u7684
+         \u8F93\u5165\u6846\u6298\u53E0\u6309\u94AE\uFF08\u2304\uFF09\u3002localMore \u4E0E localSessionLog \u540C\u5C5E LOG \u65CF\uFF080.2.0 \u5B9E\u6D4B
+         nL4_yW_moreButton\uFF09\uFF0C\u6545\u8D70 __F_LOG__ \u5360\u4F4D\u7B26 + \u8FD0\u884C\u65F6\u63A2\u6D4B/\u57FA\u7EBF\u515C\u5E95\u3002 */
+      button[class*="__F_LOG__moreButton"] {
+        display: none !important;
       }
 
       /* \u624B\u673A\u7AEF\u9690\u85CF\u4E24\u4E2A"\u53EA\u5BF9\u7535\u8111\u6709\u610F\u4E49"\u7684\u5934\u90E8\u6309\u94AE\uFF1A
@@ -1473,12 +1510,12 @@ var FAMILY_SLOTS = {
     known: ["wCInkW", "VOzbGW"],
     anchors: [{ local: "panel", find: settingsPanel }]
   },
-  // 对话区：头部标题行、标签行、右上角图标组、面包屑、滚动体、输入座
-  // （tabs / headerCorner 供「手机端头部单行化」使用：tabs 要被提到标题行同排，
-  //   headerCorner 是右上角图标组，它嵌在 titleRow 内部且带 -16px 右外边距，
-  //   决定了标签只能排在其右侧、且必须留出间隔列）
+  // 对话区：头部标题行、标题簇、标签行、工具组、右上角图标组、面包屑、滚动体、输入座
+  // （手机端"头部单行化 + 把右侧边栏挪到标签行后面"要用到这几个本地名：
+  //   titleRow 改 display:contents 让位，其三个子元素 titleCluster / headerUtilities /
+  //   headerCorner 必须逐个显式落格，tabs 落在它们之间）
   CONV: {
-    locals: ["header", "titleRow", "tabs", "headerCorner", "headerActions", "headerUtilities", "crumbs", "scrollBody", "viewArea", "composerSeat"],
+    locals: ["header", "titleRow", "titleCluster", "tabs", "headerUtilities", "headerCorner", "headerActions", "crumbs", "scrollBody", "viewArea", "composerSeat"],
     known: ["Dc7zOa", "wSkVaW"],
     anchors: [{ local: "header", find: (doc) => doc.querySelector?.('div[class*="_centerCol"] header') || null }]
   },
@@ -1524,9 +1561,11 @@ var FAMILY_SLOTS = {
     known: ["_oGoKq", "cubgiG", "h8S2Va"],
     anchors: [{ local: "seat", find: aria(/Agent 预设|Agent preset/) }]
   },
-  // 会话日志导出按钮
+  // 会话日志导出按钮 / 头部「更多操作」(⋯)
+  // moreButton 与 sessionLogButton 同属一个 CSS-module（0.2.0 实测 nL4_yW_moreButton），
+  // 收进 locals 还能反过来帮本槽位在新宿主上完成解析（0.2.0 已无 sessionLogButton 锚点）。
   LOG: {
-    locals: ["sessionLogButton"],
+    locals: ["sessionLogButton", "moreButton"],
     known: ["nL4_yW"],
     anchors: [{ local: "sessionLogButton", find: aria(/Session Log|会话日志|导出|Export/i) }]
   },
