@@ -103,6 +103,28 @@ test('产物同步：client.js 里必须带上该修正（否则跑 npm run buil
   assert.doesNotMatch(source, new RegExp(composerHash + '_trailing'), '不得硬编码宿主哈希，必须走占位符');
 });
 
+test('观感：权限胶囊紧凑化 + 右缘渐隐（切断不再像"坏掉"）', () => {
+  assert.ok(modes, '必须有一条 modes 规则');
+  // ① 胶囊紧凑化：字号与横向内衬收紧，间隙 4→2
+  assert.match(modes, /gap:\s*2px\s*!important/, '胶囊间隙应收到 2px（原 4px）');
+  const pill = rendered.match(/div\[class\*="[A-Za-z0-9_-]+_modes"\]\s+button\s*\{([^}]*)\}/);
+  assert.ok(pill, '必须有一条"权限胶囊本体"规则');
+  assert.match(pill[1], /font-size:\s*11\.5px\s*!important/, '胶囊字号应紧凑到 11.5px');
+  assert.match(pill[1], /padding-left:\s*8px\s*!important/, '横向内衬应收到 8px');
+  assert.match(pill[1], /padding-right:\s*8px\s*!important/, '横向内衬应收到 8px');
+  // ⚠️ 回归点：写成 padding 简写会把纵向内衬一起清零 —— 实测胶囊高度 24px 掉到 18px
+  assert.doesNotMatch(pill[1], /(^|[^-])padding:\s/, '不得用 padding 简写（会连纵向内衬一起清零，胶囊掉到 18px）');
+  assert.match(pill[1], /min-height:\s*22px\s*!important/, '必须用 min-height 兜住点按区高度');
+  // ② 右缘渐隐
+  assert.match(modes, /mask-image:\s*linear-gradient\(to right/, '权限区必须加右缘渐隐（提示"还能滑"）');
+  assert.match(modes, /-webkit-mask-image:\s*linear-gradient\(to right/, 'iOS Safari 需要 -webkit- 前缀');
+  assert.match(modes, /padding-right:\s*18px\s*!important/, '渐隐需要预留内衬，否则最后一个胶囊被渐变吃掉');
+  // ③ 三处间距统一为 8px
+  for (const [name, rule] of [['row', ruleFor('row')], ['tools', tools], ['trailing', trailing]]) {
+    assert.match(rule, /gap:\s*8px\s*!important/, `${name} 的间距应统一为 8px`);
+  }
+});
+
 // ── 「思考强度」是皮肤画的 fixed 元素，不在行内：必须补偿 iOS 键盘造成的坐标漂移 ──────────
 //
 // 实测事实（本文件顶部说明的延伸）：

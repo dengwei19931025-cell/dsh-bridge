@@ -42,6 +42,31 @@ const probe = () => page.evaluate(() => {
   const effort = q('.dsh-claude-effort-btn');
   const send = q('button[class*="_primary"]');
   const rowChildren = row ? [...row.children].filter((c) => c.getBoundingClientRect().width > 0) : [];
+  // 权限胶囊：找出完整落在权限区内的，以及带底色（= 激活）的那个
+  const pills = modes ? [...modes.querySelectorAll('button')].filter((b) => b.getBoundingClientRect().width > 0) : [];
+  const mb = modes?.getBoundingClientRect() || null;
+  const inModes = (b) => {
+    const r = b.getBoundingClientRect();
+    return !!mb && r.left >= mb.left - 1 && r.right <= mb.right + 1;
+  };
+  const pillInfo = pills.map((b) => ({
+    text: (b.textContent || '').trim(),
+    active: b.getAttribute('aria-checked') === 'true' || b.hasAttribute('data-active'),
+    fully: inModes(b),
+    h: Math.round(b.getBoundingClientRect().height),
+  }));
+  // 皮肤的激活白底是用 JS 算出的 --dsh-claude-pill-x/w 定位的（与头部标签行同一机制）：
+  // 我们压缩了胶囊几何，这个指示器必须跟着重算，否则白底会错位到别的胶囊上。
+  const segGroup = modes?.querySelector('.dsh-claude-segments') || null;
+  const activeSeg = segGroup?.querySelector('[role="radio"][aria-checked="true"], .dsh-claude-segment[data-active]') || null;
+  const segStyle = segGroup ? getComputedStyle(segGroup) : null;
+  const indicator = (segGroup && activeSeg) ? {
+    cssX: parseFloat(segStyle.getPropertyValue('--dsh-claude-pill-x')) || null,
+    cssW: parseFloat(segStyle.getPropertyValue('--dsh-claude-pill-w')) || null,
+    realX: activeSeg.offsetLeft,
+    realW: activeSeg.offsetWidth,
+    text: (activeSeg.textContent || '').trim(),
+  } : null;
   return {
     viewport: `${window.innerWidth}x${window.innerHeight}`,
     card: box(card), row: box(row), trailing: box(trailing), tools: box(tools), modes: box(modes),
@@ -50,6 +75,12 @@ const probe = () => page.evaluate(() => {
     trailingMaxWidth: cs(trailing, 'minWidth'),
     modesOverflowX: cs(modes, 'overflowX'),
     modesScroll: modes ? { client: modes.clientWidth, scroll: modes.scrollWidth } : null,
+    modesMask: cs(modes, 'maskImage') !== 'none' ? cs(modes, 'maskImage') : cs(modes, 'webkitMaskImage'),
+    fullyVisiblePills: pillInfo.filter((p) => p.fully).map((p) => p.text),
+    activePill: pillInfo.find((p) => p.active) || null,
+    activePillFullyVisible: (() => { const a = pillInfo.find((p) => p.active); return a ? a.fully : null; })(),
+    indicator,
+    pillHeight: pillInfo.length ? Math.min(...pillInfo.map((p) => p.h)) : null,
     rowChildrenBands: rowChildren.map((c) => `${(c.className || '').toString().slice(0, 24)}:${Math.round(c.getBoundingClientRect().top)}..${Math.round(c.getBoundingClientRect().bottom)}`),
   };
 });
@@ -73,6 +104,27 @@ for (const w of [320, 390, 430]) {
   say(`${w}px: 权限区放不下时可横滑（不是把右侧顶出行外）`,
     g.modesOverflowX === 'auto' && !!g.modesScroll,
     `overflow-x=${g.modesOverflowX} 可视/内容=${g.modesScroll?.client}/${g.modesScroll?.scroll}`);
+  // 观感断言：不能再"齐刷刷切断"。⚠️ 320px 极窄屏可视区只有 ~29px，物理上放不下任何
+  // 完整胶囊 —— 那种宽度只要求"没塌成 0 + 能滑 + 有渐隐提示"，不要求完整可见。
+  const narrow = w < 390;
+  if (narrow) {
+    say(`${w}px: 权限区没塌成 0（仍可横滑 + 有渐隐提示）`,
+      (g.modes?.w ?? 0) >= 20 && g.modesOverflowX === 'auto',
+      `modes.w=${g.modes?.w} overflow-x=${g.modesOverflowX}`);
+  } else {
+    say(`${w}px: 激活的权限胶囊完整可见（不再被硬切断）`, g.activePillFullyVisible === true,
+      `激活胶囊=${g.activePill?.text} 完整可见=${g.activePillFullyVisible}`);
+    say(`${w}px: 至少 2 个权限胶囊完整可见`, (g.fullyVisiblePills?.length ?? 0) >= 2,
+      `完整可见=${JSON.stringify(g.fullyVisiblePills)}`);
+  }
+  say(`${w}px: 权限区带右缘渐隐（提示可横滑）`, /linear-gradient\(to right/.test(g.modesMask || ''),
+    `mask-image=${String(g.modesMask).slice(0, 60)}`);
+  say(`${w}px: 权限胶囊高度 ≥ 22px（点按区没被压小）`, (g.pillHeight ?? 0) >= 22, `pillHeight=${g.pillHeight}`);
+  // 我们压缩了胶囊几何，皮肤的激活指示器（--dsh-claude-pill-x/w）必须跟着重算
+  const ind = g.indicator;
+  say(`${w}px: 激活指示器仍精准对齐（胶囊压缩后皮肤已重算坐标）`,
+    !!ind && Math.abs(ind.cssX - ind.realX) <= 2 && Math.abs(ind.cssW - ind.realW) <= 2,
+    ind ? `--pill-x=${ind.cssX} vs 实际 ${ind.realX}；--pill-w=${ind.cssW} vs 实际 ${ind.realW}（激活=${ind.text}）` : '未找到指示器变量');
   if (!insideCard) failList.push(`${w}px 强度按钮出了卡片 ${g.effort.r - g.card.r}px`);
 }
 
