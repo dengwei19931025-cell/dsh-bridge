@@ -522,6 +522,37 @@ var MOBILE_STYLES_CSS = `
         margin: 0 !important;
       }
 
+      /* \u2500\u2500 \u4F1A\u8BDD\u5934\u90E8\u5355\u884C\u5316\uFF08\u4EC5\u624B\u673A\u7AEF\uFF09\uFF1A\u628A\u300C\u5BF9\u8BDD / \u8F68\u8FF9 / \u4E0A\u4E0B\u6587 / \u7F16\u961F\u300D\u6807\u7B7E\u884C\u5E76\u8FDB\u4E0A\u4E00\u884C \u2500\u2500
+         \u73B0\u72B6\uFF08\u5BBF\u4E3B dsh-client-ui-conversation \u81EA\u5E26\u89C4\u5219\uFF0C\u4E0D\u662F\u7B2C\u4E09\u65B9\u63D2\u4EF6\u52A0\u7684\uFF09\uFF1A
+         .<F>_header \u5728\u624B\u673A\u7AEF\u4ECD\u662F\u4E24\u884C grid\u3001min-height 76px \u2014\u2014 \u7B2C 1 \u884C .<F>_titleRow
+         \uFF08\u9762\u5305\u5C51\u6807\u9898\u5DF2\u88AB\u672C\u63D2\u4EF6\u5728\u79FB\u52A8\u7AEF\u9690\u85CF\uFF0C\u53EA\u5269\u53F3\u4FA7 actions + \u53F3\u4E0A\u89D2\u56FE\u6807\u7EC4\uFF09\uFF0C
+         \u7B2C 2 \u884C .<F>_tabs\u3002\u5B9E\u6D4B 433px\uFF1A\u9875\u9762 y 52..128 \u5168\u662F\u5B83\uFF080..52 \u662F\u672C\u63D2\u4EF6\u81EA\u7ED8\u7684
+         \u79FB\u52A8\u9876\u680F\uFF09\uFF0C\u5408\u5E76\u540E 39px\uFF0C**\u7701 37px**\u3002
+
+         \u26A0\uFE0F \u4E3A\u4EC0\u4E48\u5FC5\u987B\u7559\u4E00\u5217 28px \u95F4\u9694\u5217\uFF1A\u53F3\u4E0A\u89D2\u56FE\u6807\u7EC4 .<F>_headerCorner \u5E26
+         margin-inline-end: -16px\uFF08\u5BBF\u4E3B/\u76AE\u80A4\u628A\u5B83\u585E\u8FDB\u5934\u90E8\u53F3\u5185\u8FB9\u8DDD\uFF09\u3002\u4E24\u884C\u5E03\u5C40\u4E0B\u5B83\u538B\u7684\u662F
+         \u7A7A\u767D\uFF0C\u5355\u884C\u5316\u540E\u4F1A\u538B\u5230\u6807\u7B7E\u884C\u4E0A\uFF08\u684C\u9762\u7248\u5B9E\u6D4B\u91CD\u53E0 16px\uFF09\uFF0C\u95F4\u9694\u5217\u628A\u8FD9 16px \u5438\u6536\u6389\uFF0C
+         \u5E76\u7559\u51FA 12px \u89C6\u89C9\u95F4\u8DDD\u3002
+         \u26A0\uFE0F \u4E3A\u4EC0\u4E48\u53EA\u7528\u7F51\u683C\u5217\u3001\u7EDD\u4E0D\u52A8\u6807\u7B7E\u884C\u81EA\u8EAB\u7684 border/padding\uFF1A\u76AE\u80A4 dsh-claude-style
+         \u6309\u6807\u7B7E\u884C\u7684**\u76D2\u5185\u5750\u6807**\u753B\u9AD8\u4EAE\u836F\u4E38\uFF0C\u5185\u90E8\u504F\u79FB\u4F1A\u8BA9\u836F\u4E38\u9519\u4F4D\u3002
+         \u26A0\uFE0F \u7535\u8111\u7AEF\u4E00\u5F8B\u4E0D\u751F\u6548\uFF1A\u672C\u5757\u5728 @media (max-width:767px) \u5185\uFF0C\u684C\u9762\u4FDD\u6301\u5BBF\u4E3B\u4E24\u884C\u539F\u6837\u3002
+
+         \u6807\u7B7E\u53EF\u89C1\u6027\uFF1A\u76AE\u80A4\u628A\u6807\u7B7E\u884C\u8BBE\u6210\u300C\u60AC\u505C\u624D\u663E\u5F62\u300D\u2014\u2014body[data-dsh-claude-style]
+         [data-dsh-view-tabs] \u7ED9 opacity:0\uFF0C\u518D\u9760 \u2026 [class*=centerCol]:hover \u7F6E 1\uFF1B
+         \u800C\u89E6\u5C4F\u6CA1\u6709\u771F\u6B63\u7684 hover\uFF08iOS \u9700\u70B9\u4E00\u4E0B\u5BF9\u8BDD\u533A\u624D\u4EAE\uFF0C\u5B9E\u6D4B opacity 0 \u2192 \u70B9\u51FB\u540E 1\uFF09\u3002
+         \u624B\u673A\u7AEF\u6309"\u5E38\u663E"\u5904\u7406\uFF0C\u5426\u5219\u5408\u5E76\u540E\u90A3\u4E00\u884C\u770B\u8D77\u6765\u662F\u7A7A\u7684\u3002 */
+      header[class*="__F_CONV__header"]:has(div[class*="__F_CONV__tabs"]) {
+        grid-template-columns: auto minmax(0, 1fr) 28px auto !important;
+        min-height: 0 !important;
+        align-items: center !important;
+      }
+      div[class*="__F_CONV__tabs"] {
+        grid-column: 4 !important;
+        grid-row: 1 !important;
+        margin: 0 !important;
+        opacity: 1 !important;
+      }
+
       /* \u5B50\u4EE3\u7406\u5C55\u5F00\u83DC\u5355\u5728\u79FB\u52A8\u7AEF\u53F3\u5BF9\u9F50\u4E0E\u5BBD\u5EA6\u81EA\u9002\u5E94\u3002
          \u6CE8\uFF1Amenu \u8FD9\u4E2A\u672C\u5730\u540D\u5728 0.1.x(cubgiG) \u4E0E 0.2.0(_oGoKq) \u7684 Agent \u9884\u8BBE\u65CF\u91CC\u90FD\u4E0D\u5B58\u5728
          \uFF08\u5B9E\u6D4B\uFF09\uFF0C\u672C\u89C4\u5219\u5728\u8FD9\u4E24\u4E2A\u5BBF\u4E3B\u4E0A\u4E0D\u547D\u4E2D\uFF1B\u4FDD\u7559\u662F\u4E3A\u4E86\u4E0D\u6539\u52A8\u65E7\u884C\u4E3A\uFF0C\u7B49\u91C7\u5230\u771F\u5B9E\u951A\u70B9\u518D\u6536\u655B\u3002 */
@@ -1423,9 +1454,12 @@ var FAMILY_SLOTS = {
     known: ["wCInkW", "VOzbGW"],
     anchors: [{ local: "panel", find: settingsPanel }]
   },
-  // 对话区：头部标题行、面包屑、滚动体、输入座
+  // 对话区：头部标题行、标签行、右上角图标组、面包屑、滚动体、输入座
+  // （tabs / headerCorner 供「手机端头部单行化」使用：tabs 要被提到标题行同排，
+  //   headerCorner 是右上角图标组，它嵌在 titleRow 内部且带 -16px 右外边距，
+  //   决定了标签只能排在其右侧、且必须留出间隔列）
   CONV: {
-    locals: ["header", "titleRow", "headerActions", "headerUtilities", "crumbs", "scrollBody", "viewArea", "composerSeat"],
+    locals: ["header", "titleRow", "tabs", "headerCorner", "headerActions", "headerUtilities", "crumbs", "scrollBody", "viewArea", "composerSeat"],
     known: ["Dc7zOa", "wSkVaW"],
     anchors: [{ local: "header", find: (doc) => doc.querySelector?.('div[class*="_centerCol"] header') || null }]
   },

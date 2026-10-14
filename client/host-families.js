@@ -182,9 +182,12 @@ export const FAMILY_SLOTS = {
     known: ['wCInkW', 'VOzbGW'],
     anchors: [{ local: 'panel', find: settingsPanel }],
   },
-  // 对话区：头部标题行、面包屑、滚动体、输入座
+  // 对话区：头部标题行、标签行、右上角图标组、面包屑、滚动体、输入座
+  // （tabs / headerCorner 供「手机端头部单行化」使用：tabs 要被提到标题行同排，
+  //   headerCorner 是右上角图标组，它嵌在 titleRow 内部且带 -16px 右外边距，
+  //   决定了标签只能排在其右侧、且必须留出间隔列）
   CONV: {
-    locals: ['header', 'titleRow', 'headerActions', 'headerUtilities', 'crumbs', 'scrollBody', 'viewArea', 'composerSeat'],
+    locals: ['header', 'titleRow', 'tabs', 'headerCorner', 'headerActions', 'headerUtilities', 'crumbs', 'scrollBody', 'viewArea', 'composerSeat'],
     known: ['Dc7zOa', 'wSkVaW'],
     anchors: [{ local: 'header', find: (doc) => doc.querySelector?.('div[class*="_centerCol"] header') || null }],
   },

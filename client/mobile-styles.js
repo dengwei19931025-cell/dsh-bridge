@@ -497,6 +497,37 @@ export const MOBILE_STYLES_CSS = `
         margin: 0 !important;
       }
 
+      /* ── 会话头部单行化（仅手机端）：把「对话 / 轨迹 / 上下文 / 编队」标签行并进上一行 ──
+         现状（宿主 dsh-client-ui-conversation 自带规则，不是第三方插件加的）：
+         .<F>_header 在手机端仍是两行 grid、min-height 76px —— 第 1 行 .<F>_titleRow
+         （面包屑标题已被本插件在移动端隐藏，只剩右侧 actions + 右上角图标组），
+         第 2 行 .<F>_tabs。实测 433px：页面 y 52..128 全是它（0..52 是本插件自绘的
+         移动顶栏），合并后 39px，**省 37px**。
+
+         ⚠️ 为什么必须留一列 28px 间隔列：右上角图标组 .<F>_headerCorner 带
+         margin-inline-end: -16px（宿主/皮肤把它塞进头部右内边距）。两行布局下它压的是
+         空白，单行化后会压到标签行上（桌面版实测重叠 16px），间隔列把这 16px 吸收掉，
+         并留出 12px 视觉间距。
+         ⚠️ 为什么只用网格列、绝不动标签行自身的 border/padding：皮肤 dsh-claude-style
+         按标签行的**盒内坐标**画高亮药丸，内部偏移会让药丸错位。
+         ⚠️ 电脑端一律不生效：本块在 @media (max-width:767px) 内，桌面保持宿主两行原样。
+
+         标签可见性：皮肤把标签行设成「悬停才显形」——body[data-dsh-claude-style]
+         [data-dsh-view-tabs] 给 opacity:0，再靠 … [class*=centerCol]:hover 置 1；
+         而触屏没有真正的 hover（iOS 需点一下对话区才亮，实测 opacity 0 → 点击后 1）。
+         手机端按"常显"处理，否则合并后那一行看起来是空的。 */
+      header[class*="__F_CONV__header"]:has(div[class*="__F_CONV__tabs"]) {
+        grid-template-columns: auto minmax(0, 1fr) 28px auto !important;
+        min-height: 0 !important;
+        align-items: center !important;
+      }
+      div[class*="__F_CONV__tabs"] {
+        grid-column: 4 !important;
+        grid-row: 1 !important;
+        margin: 0 !important;
+        opacity: 1 !important;
+      }
+
       /* 子代理展开菜单在移动端右对齐与宽度自适应。
          注：menu 这个本地名在 0.1.x(cubgiG) 与 0.2.0(_oGoKq) 的 Agent 预设族里都不存在
          （实测），本规则在这两个宿主上不命中；保留是为了不改动旧行为，等采到真实锚点再收敛。 */
