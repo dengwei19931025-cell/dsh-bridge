@@ -1232,48 +1232,4 @@ export const MOBILE_STYLES_CSS = `
         display: none !important;
       }
     }
-
-    /* ── 会话头部单行化：把「对话 / 轨迹 / 上下文 / 编队」标签行并进标题行 ──────────
-       现状（宿主 dsh-client-ui-conversation 自带规则，不是第三方插件加的）：
-         .<F>_header 是 display:grid，列宽 auto / minmax(0,1fr)，min-height 76px，
-                     padding 10px 28px 0 20px；
-         .<F>_titleRow 占 grid-column 2、min-height 30px  ← 第 1 行：标题 + 模式 +
-                                                            后台任务 + 右上角图标组
-         .<F>_tabs 自带 margin-top 10px                    ← 第 2 行：标签行
-       于是头部恒占两行（实测 1009px 宽窗口下 h=77px）。
-
-       宿主自己留了语义后门：.<F>_header 上有一条 :where(:not(:has(.<F>_tabs))) 规则，
-       把 min-height 归零、padding-bottom 设为 10px —— 即「没有标签行时才收窄」。
-       本规则顺着它做：给网格补出「间隔列 + 标签列」，把标签行提到第一行，头部即从两行
-       收成一行（实测 77px → 51px）。用 :has() 自限，只作用于「确实带标签行」的头部，
-       新建会话页的 headerBlank / headerSessionless 不受影响（宿主同样用 :has()，
-       支持面一致）。
-
-       ⚠️ 为什么要留一列 28px 间隔（实测出来的，不是凑数）：右上角图标组 .<F>_headerCorner
-       带 margin-inline-end: -16px（宿主/皮肤把它塞进头部右内边距）。两行布局下它压的是
-       空白，单行化后就会压到标签行上（实测重叠 16px）。间隔列把这份负外边距吸收掉，
-       并留出 12px 视觉间距；标签列取 auto，所以标签右缘仍与内容右缘对齐，标签行自身的
-       盒宽不变（皮肤 dsh-claude-style 依赖它的内部坐标画高亮药丸，绝不能用 border/padding
-       去挪，否则药丸会错位）。
-
-       ⚠️ 为什么限定 min-width:768px（与插件「移动端 = ≤767px」的约定对齐）：390px 手机宽度下
-       内容区仅 342px，而标签行本身就有 198px，单行化会把会话标题挤到几乎不可见。手机上保留
-       宿主自己的两行布局更合理；这条改写的诉求来自桌面窗口（实测 1009px）。
-
-       ⚠️ 已知边界（不要试图用 CSS 绕）：headerCorner 位于 titleRow **内部**，CSS 无法让它与
-       标签行交叉排序，所以标签只能落在图标**右侧**。若将来要求标签在图标左侧，只能由 JS
-       改写 DOM（移动 React 拥有的节点），风险显著更高，需 MutationObserver 兜底。 */
-    @media (min-width: 768px) {
-      header[class*="__F_CONV__header"]:has(div[class*="__F_CONV__tabs"]) {
-        grid-template-columns: auto minmax(0, 1fr) 28px auto !important;
-        min-height: 0 !important;
-        padding-bottom: 10px !important;
-        align-items: center !important;
-      }
-      div[class*="__F_CONV__tabs"] {
-        grid-column: 4 !important;
-        grid-row: 1 !important;
-        margin: 0 !important;
-      }
-    }
 `;
