@@ -1,5 +1,6 @@
 import { MOBILE_STYLES_CSS } from './mobile-styles.js'
 import { THEME_TOKENS_CSS } from './theme-tokens.js'
+import { IOS_INPUT_ZOOM_CSS } from './ios-input-zoom.js'
 import {
   resolveHostFamilies,
   renderMobileStyles,
@@ -4140,6 +4141,23 @@ function injectThemeTokens() {
   document.head.appendChild(style);
 }
 
+// iOS 输入框聚焦自动放大修复：与移动端布局**无关**，必须无条件注入。
+// 理由同 injectThemeTokens —— 挂在 @media (max-width: 767px) + shouldYieldMobileStyles
+// 的 mobile-styles 层上会漏掉横屏 iPhone / iPad / 第三方响应式插件接管等场景，
+// 而 iOS 的 zoom-to-focus 只跟"是不是 iOS WebKit"有关。详见 client/ios-input-zoom.js。
+function injectIosInputZoom() {
+  if (typeof document === 'undefined') return;
+  if (document.getElementById('dsh-bridge-ios-input-zoom')) return;
+  const style = document.createElement('style');
+  style.id = 'dsh-bridge-ios-input-zoom';
+  // 归属标记（Issue #24）：与 injectThemeTokens / injectMobileStyles 同款，
+  // 避免宿主 claimStyles 认领无主样式并在 HMR 重载时误删。
+  style.dataset.plugin = '@wenbin_wb/dsh-bridge';
+  style.dataset.pluginCss = '@wenbin_wb/dsh-bridge/ios-input-zoom';
+  style.textContent = IOS_INPUT_ZOOM_CSS;
+  document.head.appendChild(style);
+}
+
 function injectMobileStyles() {
   if (typeof document === 'undefined') return;
   if (shouldYieldMobileStyles()) return;
@@ -5668,6 +5686,8 @@ function apply(ctx) {
   window.__dshClientCtx = ctx;
   // 主题令牌优先：后续任何渲染都要能取到告警面/边框的深色值（与移动端让位无关）
   injectThemeTokens();
+  // iOS 输入框聚焦放大修复同样无条件：它不是移动端布局，而是 iOS WebKit 的平台缺陷修复
+  injectIosInputZoom();
   // 国际化：创建翻译器（跟随 DSH 主体语言，读 <html lang>；有 locale 服务则顺带注册
   // 词典，拿不到/被门控也不抛错）。注：locale 服务不能声明进 inject——动态插件声明
   // 会导致激活等待（宿主 env 无该服务，entry did not activate）。

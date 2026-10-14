@@ -1293,6 +1293,26 @@ var THEME_TOKENS_CSS = `
   }
 `;
 
+// client/ios-input-zoom.js
+var IOS_INPUT_ZOOM_CSS = `
+  @supports (-webkit-touch-callout: none) {
+    /* \u4F1A\u89E6\u53D1 zoom-to-focus \u7684\u53EF\u7F16\u8F91\u63A7\u4EF6\uFF1A\u6587\u672C\u7C7B input / textarea / select /
+       contenteditable\uFF08\u5BBF\u4E3B composer \u5C5E\u6700\u540E\u4E00\u79CD\uFF0CDSH \u7528 Lexical \u5B9E\u73B0\uFF09\u3002
+
+       !important \u662F\u5FC5\u987B\u7684\uFF1A\u63D2\u4EF6\u81EA\u8EAB\u5927\u91CF\u4F7F\u7528\u5185\u8054 fontSize: 11~13
+       \uFF08client/index.js \u7684 s.input \u4E0E\u5DE5\u4F5C\u533A\u5F39\u7A97\uFF09\uFF0C\u975E !important \u538B\u4E0D\u8FC7\u5185\u8054\u58F0\u660E\u3002
+
+       \u523B\u610F\u6392\u9664 checkbox / radio / range / color / file / button / submit / reset /
+       image\uFF1A\u8FD9\u4E9B\u4E0D\u89E6\u53D1\u653E\u5927\uFF0C\u5F3A\u6539 16px \u53CD\u800C\u4F1A\u628A\u590D\u9009\u6846\u3001\u6ED1\u5757\u3001\u53D6\u8272\u5668\u6491\u574F\u3002 */
+    textarea,
+    select,
+    [contenteditable="true"],
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]) {
+      font-size: 16px !important;
+    }
+  }
+`;
+
 // client/host-families.js
 var ABSENT_FAMILY = "__dshbr_absent_family";
 var FAMILY_TOKEN_RE = /__F_([A-Z][A-Z0-9_]*)__/g;
@@ -6634,6 +6654,16 @@ function injectThemeTokens() {
   style.textContent = THEME_TOKENS_CSS;
   document.head.appendChild(style);
 }
+function injectIosInputZoom() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById("dsh-bridge-ios-input-zoom")) return;
+  const style = document.createElement("style");
+  style.id = "dsh-bridge-ios-input-zoom";
+  style.dataset.plugin = "@wenbin_wb/dsh-bridge";
+  style.dataset.pluginCss = "@wenbin_wb/dsh-bridge/ios-input-zoom";
+  style.textContent = IOS_INPUT_ZOOM_CSS;
+  document.head.appendChild(style);
+}
 function injectMobileStyles() {
   if (typeof document === "undefined") return;
   if (shouldYieldMobileStyles()) return;
@@ -7884,6 +7914,7 @@ function setupComposerCollapse() {
 function apply(ctx) {
   window.__dshClientCtx = ctx;
   injectThemeTokens();
+  injectIosInputZoom();
   const intl = createTranslator(ctx);
   localeT = (key, vars) => intl.t(key, vars);
   const pageTweaksOn = !shouldYieldAllPageTweaks();
