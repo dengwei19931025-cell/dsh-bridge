@@ -23,6 +23,8 @@ const SUITES = [
   { file: 'host-family-compat.mjs', label: '宿主代次兼容守卫（任意版本宿主都能定位设置弹窗）' },
   // 与宿主代次无关的守卫：iOS 聚焦放大修复层是否注入、选择器是否命中且不误伤
   { file: 'ios-input-zoom.mjs', label: 'iOS 输入框聚焦放大修复（16px 选择器与优先级）' },
+  // 与宿主代次无关的守卫：会话头部是否真被收成一行、标签功能是否完好
+  { file: 'header-single-row.mjs', label: '会话头部单行化（几何 + :has() 自限）' },
   { file: 'mobile-settings-fix.mjs', label: '设置页几何 + 可达性 + 视图切换' },
   { file: 'mobile-settings-all-sections.mjs', label: '全设置分类 × 全视口扫描' },
   { file: 'mobile-settings-edge.mjs', label: '极窄屏 320 + 页签可达性' },
