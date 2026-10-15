@@ -813,6 +813,23 @@ export const MOBILE_STYLES_CSS = `
         box-sizing: border-box !important;
       }
 
+      /* 手机端：输入行里被**其它插件插进来**的控件必须自适应，不许"压扁后溢出画到邻居身上"。
+         背景（用户上报 + 截图）：宿主的 slot「conversation.input.left」/「conversation.composer.dock」
+         是**共享座位**，接入渠道的插件 dsh-connect-workbuddy 会把积分读数
+         （.dsm-workbuddy-composer-credits，形如「WB CN · 7」）放进这里。
+         它自身样式是 display:inline-flex + min-width:0：窄屏被压到 0 宽后**内容不缩**，
+         文字于是直接画在权限胶囊上（用户截图里显示成「WB CN · Au[to]」叠字）。
+         ① 精确隐藏该积分读数（用户明确要求"不显示"）；
+         ② 通用兜底：输入行的任何直接子项都不得溢出（modes 除外——它需要横向滚动，
+            由它自己的规则负责），这样将来任何插件往这个座位塞东西都不会再叠字。
+         ⚠️ 本段注释里不能出现反引号：整个文件是 JS 模板字符串，反引号会截断它。 */
+      .dsm-workbuddy-composer-credits {
+        display: none !important;
+      }
+      div[class*="__F_COMPOSER__row"] > *:not([class*="__F_COMPOSER__modes"]) {
+        overflow: hidden !important;
+      }
+
       div[class*="__F_COMPOSER__tools"] {
         display: flex !important;
         align-items: center !important;

@@ -157,6 +157,24 @@ test('手机端隐藏输入区「用量/积分」统计徽标（用户上报的 
   assert.ok(rawBundle.includes('data-composer-stat'), '产物里必须带上，请重新构建');
 });
 
+test('手机端：输入行里"其它插件插进来"的控件必须自适应（渠道积分不再叠字）', () => {
+  // 用户上报 + 截图：接入渠道的插件（dsh-connect-workbuddy）把积分读数
+  // 「WB CN · 7」通过宿主共享 slot（conversation.input.left）塞进输入行；
+  // 它自身是 display:inline-flex + min-width:0，窄屏被压到 0 宽后内容不缩，
+  // 于是文字直接画在权限胶囊上（截图里显示成「WB CN · Auto」叠字）。
+  assert.match(cssNoComment, /\.dsm-workbuddy-composer-credits\s*\{[^}]*display:\s*none\s*!important/,
+    '渠道积分读数必须被隐藏（用户明确要求不显示）');
+  // 通用兜底：输入行直接子项不得溢出（modes 除外，它要横向滚动）
+  assert.match(cssNoComment,
+    /div\[class\*="__F_COMPOSER__row"\]\s*>\s*\*:not\(\[class\*="__F_COMPOSER__modes"\]\)\s*\{[^}]*overflow:\s*hidden\s*!important/,
+    '输入行的任何直接子项都必须裁掉溢出 —— 否则任何插件往这个共享座位塞东西都会叠字');
+  // 兜底规则不能把 modes 的横滑吃掉
+  assert.match(modes, /overflow-x:\s*auto\s*!important/, 'modes 仍必须能横向滚动（兜底规则已用 :not 排除它）');
+  // ⚠️ 回归点：本文件整体是 JS 模板字符串，注释里出现反引号会把它截断（构建直接失败，已踩过）
+  assert.ok(!MOBILE_STYLES_CSS.includes('`'), '手机端 CSS 里不得出现反引号（会截断模板字符串）');
+  assert.ok(rawBundle.includes('dsm-workbuddy-composer-credits'), '产物里必须带上，请重新构建');
+});
+
 // ── 「思考强度」是皮肤画的 fixed 元素，不在行内：必须补偿 iOS 键盘造成的坐标漂移 ──────────
 //
 // 实测事实（本文件顶部说明的延伸）：

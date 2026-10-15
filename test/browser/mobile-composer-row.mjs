@@ -266,6 +266,83 @@ say('电脑端：统计隐藏规则不生效（上抬位移变量未被我们清
   `--dsh-claude-mobile-stats-lift=${deskStats.lift || '(未设置)'}`);
 if (deskStats.lift === '0px') fail++;
 
+// ── 输入行里"其它插件插进来"的控件（渠道积分）必须自适应，不许叠字 ──────────────────
+// 复现依据：dsh-connect-workbuddy 通过宿主共享 slot（conversation.input.left）把积分读数
+// 插进输入行，元素自带样式 display:inline-flex + min-width:0（内容 nowrap）→
+// 窄屏被压到 0 宽后内容照画，压住权限胶囊（用户截图「WB CN · Auto」叠字）。
+const injectThirdParty = () => page.evaluate(() => {
+  const row = document.querySelector('div[class*="_row"]');
+  if (!row) return 'no-row';
+  const mk = (cls, id, text) => {
+    const el = document.createElement('span');
+    el.className = cls;
+    el.id = id;
+    el.style.display = 'inline-flex';
+    el.style.minWidth = '0';
+    el.style.whiteSpace = 'nowrap';
+    el.textContent = text;
+    return el;
+  };
+  if (!document.getElementById('sim-wb-chip')) row.insertBefore(mk('dsm-workbuddy-composer-credits', 'sim-wb-chip', 'WB CN · 7'), row.firstChild);
+  if (!document.getElementById('sim-generic-chip')) row.appendChild(mk('some-third-party-widget', 'sim-generic-chip', 'XYZ · 99'));
+  return 'ok';
+});
+const thirdPartyProbe = () => page.evaluate(() => {
+  const cs = (el, p) => (el ? getComputedStyle(el)[p] : null);
+  const box = (el) => { if (!el) return null; const b = el.getBoundingClientRect(); return { l: Math.round(b.left), r: Math.round(b.right), w: Math.round(b.width) }; };
+  const chip = document.getElementById('sim-wb-chip');
+  const gen = document.getElementById('sim-generic-chip');
+  const modes = document.querySelector('div[class*="_modes"]');
+  const mb = modes ? modes.getBoundingClientRect() : null;
+  // 溢出判据：盒宽不足时，内容仍会画到盒外（用 内容右缘 = 盒左 + scrollWidth 估）
+  const spills = (el) => {
+    if (!el || !mb) return false;
+    const b = el.getBoundingClientRect();
+    const contentRight = Math.max(b.right, b.left + el.scrollWidth);
+    return el.scrollWidth > b.width + 1 && contentRight > mb.left && b.left < mb.right;
+  };
+  const visible = (el) => !!el && cs(el, 'display') !== 'none' && el.getBoundingClientRect().width > 0;
+  return {
+    chipDisplay: chip ? cs(chip, 'display') : null,
+    chipBox: box(chip),
+    chipOverflow: chip ? cs(chip, 'overflow') : null,
+    genericDisplay: gen ? cs(gen, 'display') : null,
+    genericOverflow: gen ? cs(gen, 'overflow') : null,
+    genericSpills: spills(gen),
+    chipSpills: spills(chip),
+    // 三个正式控件不能被误裁
+    modelClipped: (() => { const m = document.querySelector('.dsh-claude-model-btn'); return m ? m.scrollWidth > m.clientWidth + 1 : null; })(),
+    effortVisible: visible(document.querySelector('.dsh-claude-effort-btn')),
+    sendVisible: visible(document.querySelector('button[class*="_primary"]')),
+    modesScrollable: modes ? cs(modes, 'overflowX') : null,
+  };
+});
+
+for (const w of [320, 390, 430]) {
+  await page.setViewport({ width: w, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  await sleep(900);
+  await injectThirdParty();
+  await sleep(600);
+  const tp = await thirdPartyProbe();
+  say(`${w}px: 渠道积分读数（WB CN · 7）已隐藏`, tp.chipDisplay === 'none' && (tp.chipBox?.w ?? -1) === 0,
+    `display=${tp.chipDisplay} box=${JSON.stringify(tp.chipBox)}`);
+  say(`${w}px: 任意第三方控件也不会溢出叠字（裁掉溢出）`, tp.genericOverflow === 'hidden' && !tp.genericSpills,
+    `overflow=${tp.genericOverflow} 溢出叠字=${tp.genericSpills}`);
+  say(`${w}px: 模型/思考强度/发送 三个正式控件未被误裁`,
+    tp.modelClipped === false && tp.effortVisible === true && tp.sendVisible === true,
+    `model截断=${tp.modelClipped} effort=${tp.effortVisible} send=${tp.sendVisible}`);
+  say(`${w}px: 权限区仍可横滑（兜底规则没吃掉它）`, tp.modesScrollable === 'auto', `overflow-x=${tp.modesScrollable}`);
+}
+
+// 电脑端红线：我们的隐藏/裁剪规则不生效
+await page.setViewport({ width: 1280, height: 800, deviceScaleFactor: 1 });
+await sleep(900);
+await injectThirdParty();
+await sleep(600);
+const deskTp = await thirdPartyProbe();
+say('电脑端：渠道积分不被我们隐藏（移动端规则不生效）', deskTp.chipDisplay !== 'none',
+  `display=${deskTp.chipDisplay} overflow=${deskTp.chipOverflow}`);
+
 const desktop = await probe();
 say('电脑端：我们的移动端规则不生效（trailing 不强制 max-content、modes 不横滑）',
   desktop.trailingMaxWidth !== 'max-content' && desktop.modesOverflowX !== 'auto',
