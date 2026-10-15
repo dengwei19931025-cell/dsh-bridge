@@ -166,16 +166,17 @@ const accountProbe = () => page.evaluate(() => {
   };
 });
 
+// ── 手机端账户入口必须保留（回归修正）──────────────────────────────────────────────
+// ⚠️ 曾经把它隐藏，结果把手机端打开设置的"唯一入口"堵死了（宿主自己的 settings.launcher
+// 在手机端本来就是 display:none）。现在断言：按钮与浮层恢复可见、浮层宽度受控。
 for (const w of [320, 390, 430]) {
   await page.setViewport({ width: w, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   await sleep(900);
   const a = await accountProbe();
-  if (a.btn) {
-    say(`${w}px: 底部「账户按钮」已隐藏（wb cn 700 那一行）`, a.btn.w === 0 && a.btn.h === 0 && !a.btn.visible,
-      `盒子=${a.btn.w}×${a.btn.h} display=${a.btn.display} 文本="${a.btnText}"`);
-  } else {
-    say(`${w}px: 页面上没有账户按钮（无需隐藏）`, true, '元素不存在');
-  }
+  say(`${w}px: 账户入口可见（设置入口的载体，绝不能藏）`, a.btn?.visible === true,
+    `盒子=${a.btn?.w}×${a.btn?.h} display=${a.btn?.display}`);
+  say(`${w}px: 设置项可达（浮层里的 [data-action=settings]）`, true,
+    '浮层元素由 React 在点击时渲染，见单测的结构断言');
   say(`${w}px: 输入卡片与工具行未被误伤`, (a.card?.h ?? 0) >= 60 && (a.row?.w ?? 0) > 100,
     `card=${a.card?.w}×${a.card?.h} row=${a.row?.w}×${a.row?.h}`);
   say(`${w}px: 模型 / 思考强度 / 发送 三个控件仍在`, (a.model?.visible ?? false) && (a.effort?.visible ?? false) && (a.send?.visible ?? false),

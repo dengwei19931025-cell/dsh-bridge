@@ -677,43 +677,36 @@ var MOBILE_STYLES_CSS = `
         right: 0 !important;
       }
 
-      /* \u624B\u673A\u7AEF\u9690\u85CF\u5E95\u90E8\u300C\u8D26\u6237\u6309\u94AE\u300D\uFF08\u76AE\u80A4 dsh-claude-style \u81EA\u7ED8\u7684\u8D26\u6237\u5165\u53E3\uFF0C\u5373\u7528\u6237\u8BF4\u7684
-         \u300Cwb cn 700\u300D\u90A3\u4E00\u884C\uFF1A\u5934\u50CF + \u6E20\u9053\u540D + \u79EF\u5206 + \u7BAD\u5934\uFF09\u3002
-         \u80CC\u666F\uFF08\u7528\u6237\u660E\u786E\u8981\u6C42\uFF09\uFF1A\u624B\u673A\u7AEF\u8FD9\u4E00\u884C\u65E2\u5360\u5730\u65B9\uFF0C\u53C8\u628A\u6E20\u9053/\u79EF\u5206\u8FD9\u7C7B\u4FE1\u606F\u9732\u5728\u9762\u4E0A\u3002
-         \u26A0\uFE0F \u5B9E\u6D4B\u8BE5\u6309\u94AE**\u6CA1\u6709 inline style**\uFF08display \u6765\u81EA\u76AE\u80A4 CSS\uFF09\uFF0C\u6240\u4EE5
-         display:none !important \u80FD\u7A33\u5B9A\u76D6\u4F4F\uFF1B\u4F46\u76AE\u80A4\u662F\u53D7\u63A7\u7EC4\u4EF6\uFF0C\u5C06\u6765\u67D0\u6B21\u6539\u52A8
-         \u53EF\u80FD\u5F00\u59CB\u5199 inline display \u2014\u2014 \u90A3\u65F6\u540C\u6743\u91CD\u89C4\u5219\u4F1A\u88AB inline \u6253\u8D25\u3002
-         \u6545\uFF1A\u2460 CSS \u7528 display:none + content-visibility \u53CC\u4FDD\u9669\uFF08\u76D2\u5B50\u4E0E\u5B50\u6811\u90FD\u4E0D\u6E32\u67D3\uFF09\uFF1B
-         \u2461 client/index.js \u7684 setupAccountHide() \u7528 MutationObserver \u515C\u5E95\uFF0C\u4E00\u65E6\u76AE\u80A4
-         \u628A display \u5199\u56DE inline-flex \u5C31\u518D\u538B\u4E00\u6B21\uFF08\u76F8\u5F53\u4E8E"\u9632\u590D\u6D3B"\uFF09\u3002
-         \u26A0\uFE0F \u53EA\u5F71\u54CD\u624B\u673A\u7AEF\uFF08\u672C\u5757\u5728 max-width:767px \u5185\uFF09\uFF0C\u7535\u8111\u7AEF\u90A3\u4E00\u884C\u7167\u5E38\u663E\u793A\u3002 */
+      /* \u624B\u673A\u7AEF\u7684\u300C\u8D26\u6237\u6309\u94AE\u300D\u5FC5\u987B**\u4FDD\u7559**\uFF08\u56DE\u5F52\u4FEE\u6B63\uFF0C2026-10-15\uFF09\uFF1A
+         \u4E4B\u524D\u8FD9\u7248\u628A\u5B83\u548C\u6D6E\u5C42\u4E00\u8D77\u85CF\u4E86\uFF0C\u7ED3\u679C\u628A\u624B\u673A\u7AEF\u552F\u4E00\u7684\u8BBE\u7F6E\u5165\u53E3\u5835\u6B7B\u4E86 \u2014\u2014
+         \u5B9E\u6D4B\uFF08390px \u4FA7\u8FB9\u680F\u5E95\u90E8\uFF09\uFF1A\u5BBF\u4E3B\u81EA\u5DF1\u7684 settings.launcher \u5728\u624B\u673A\u7AEF\u672C\u6765\u5C31\u662F
+         display:none\uFF08\u5BBF\u4E3B\u884C\u4E3A\uFF09\uFF0C\u800C**\u6253\u5F00\u8BBE\u7F6E\u7684\u771F\u6B63\u5165\u53E3\u662F\u76AE\u80A4\u8D26\u6237\u6D6E\u5C42\u91CC\u7684
+         [data-action="settings"] \u9879**\uFF1B\u8D26\u6237\u6309\u94AE\u88AB\u85CF \u2192 \u6D6E\u5C42\u6CA1\u4E86 \u2192 \u8BBE\u7F6E\u6253\u4E0D\u5F00\u3002
+         \u73B0\u5728\u7684\u53E3\u5F84\uFF1A**\u5165\u53E3\u4E0E\u6D6E\u5C42\u4FDD\u7559**\uFF08\u8BBE\u7F6E\u53EF\u8FBE\uFF09\uFF0C\u53EA\u628A\u66B4\u9732\u6E20\u9053/\u79EF\u5206\u7684\u4FE1\u606F\u6536\u7A84\uFF1B
+         \u6E20\u9053/\u79EF\u5206\u7684"\u53E0\u5B57"\u53E6\u6709\u4E13\u95E8\u89C4\u5219\uFF08\u89C1 .dsm-workbuddy-composer-credits \u4E0E
+         [data-composer-stat] \u4E24\u6761\uFF09\uFF0C\u4E0E\u672C\u6761\u65E0\u5173\u3002
+         \u26A0\uFE0F \u82E5\u5C06\u6765\u8FD8\u8981\u5728\u624B\u673A\u7AEF\u6536\u7A84\u8FD9\u4E2A\u6309\u94AE\uFF0C\u5FC5\u987B\u5148\u786E\u8BA4\u8BBE\u7F6E\u5165\u53E3\u53E6\u6709\u5B83\u9014\u3002 */
       .dsh-claude-account-btn {
-        display: none !important;
-        content-visibility: hidden !important;
-        width: 0 !important;
-        height: 0 !important;
+        display: inline-flex !important;
+        content-visibility: visible !important;
+        width: auto !important;
+        height: 36px !important;
         min-width: 0 !important;
         min-height: 0 !important;
-        padding: 0 !important;
-        margin: 0 !important;
         overflow: hidden !important;
-        pointer-events: none !important;
       }
-      /* \u76AE\u80A4\u5728\u4FA7\u8FB9\u680F\u5E95\u90E8"\u63A5\u7BA1"\u7684\u90A3\u4E00\u884C\uFF08\u8D26\u6237\u5BBF\u4E3B\u884C\uFF09\u540C\u6837\u4E0D\u80FD\u5360\u9AD8\u5EA6 */
+      /* \u4FA7\u8FB9\u680F\u5E95\u90E8\u7684"\u8D26\u6237\u5BBF\u4E3B\u884C"\u4FDD\u6301\u6B63\u5E38\uFF08\u4E0D\u518D\u6E05\u96F6\uFF09 */
       [data-dsh-claude-account-host-row] {
-        display: none !important;
-        content-visibility: hidden !important;
-        width: 0 !important;
-        height: 0 !important;
+        display: flex !important;
+        content-visibility: visible !important;
+        width: auto !important;
         min-height: 0 !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        overflow: hidden !important;
-        pointer-events: none !important;
+        overflow: visible !important;
       }
-      /* \u8D26\u6237\u6D6E\u5C42\uFF1A\u624B\u673A\u7AEF\u6574\u4F53\u7981\u7528\uFF08\u5165\u53E3\u5DF2\u9690\u85CF\uFF0C\u6D6E\u5C42\u4E0D\u8BE5\u8FD8\u80FD\u88AB\u5524\u51FA\uFF09 */
+      /* \u8D26\u6237\u6D6E\u5C42\u6062\u590D\u6B63\u5E38\u663E\u793A\uFF08\u8BBE\u7F6E\u5165\u53E3\u5728\u91CC\u9762\uFF09\uFF0C\u5E76\u628A\u5BBD\u5EA6\u7EA6\u675F\u5230\u624B\u673A\u5C4F\u5185 */
       .dsh-claude-account-popover {
-        display: none !important;
+        display: flex !important;
+        max-width: calc(100vw - 24px) !important;
       }
 
       /* \u624B\u673A\u7AEF\u9690\u85CF\u8F93\u5165\u533A\u300C\u7528\u91CF / \u79EF\u5206\u300D\u7EDF\u8BA1\u5FBD\u6807 \u2014\u2014 \u7528\u6237\u4E0A\u62A5\u7684\u90A3\u884C\u300CWB CN \xB7 7\u300D\u3002
@@ -7607,29 +7600,6 @@ function setupIosKeyboardAdapter() {
   });
 }
 function setupAccountHide() {
-  if (typeof window === "undefined" || typeof document === "undefined") return;
-  if (typeof MutationObserver !== "function") return;
-  if (window.innerWidth > MOBILE_MAX_WIDTH) return;
-  const isMobileNow = () => window.innerWidth <= MOBILE_MAX_WIDTH;
-  const kill = (el) => {
-    if (!el || el.dataset.dshBridgeHidden === "1") return;
-    el.dataset.dshBridgeHidden = "1";
-    el.style.setProperty("display", "none", "important");
-  };
-  const sweep = () => {
-    if (!isMobileNow()) return;
-    for (const el of document.querySelectorAll(".dsh-claude-account-btn, [data-dsh-claude-account-host-row], .dsh-claude-account-popover")) {
-      const cs = getComputedStyle(el);
-      const b = el.getBoundingClientRect();
-      if (cs.display !== "none" && (b.width > 0 || b.height > 0)) kill(el);
-    }
-  };
-  const obs = new MutationObserver(sweep);
-  obs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "class", "data-open"] });
-  window.addEventListener("resize", () => {
-    if (isMobileNow()) sweep();
-  }, { passive: true });
-  sweep();
 }
 function setupEffortAnchor() {
   if (typeof window === "undefined" || typeof document === "undefined") return;
