@@ -652,6 +652,45 @@ export const MOBILE_STYLES_CSS = `
         right: 0 !important;
       }
 
+      /* 手机端隐藏底部「账户按钮」（皮肤 dsh-claude-style 自绘的账户入口，即用户说的
+         「wb cn 700」那一行：头像 + 渠道名 + 积分 + 箭头）。
+         背景（用户明确要求）：手机端这一行既占地方，又把渠道/积分这类信息露在面上。
+         ⚠️ 实测该按钮**没有 inline style**（display 来自皮肤 CSS），所以
+         display:none !important 能稳定盖住；但皮肤是受控组件，将来某次改动
+         可能开始写 inline display —— 那时同权重规则会被 inline 打败。
+         故：① CSS 用 display:none + content-visibility 双保险（盒子与子树都不渲染）；
+         ② client/index.js 的 setupAccountHide() 用 MutationObserver 兜底，一旦皮肤
+         把 display 写回 inline-flex 就再压一次（相当于"防复活"）。
+         ⚠️ 只影响手机端（本块在 max-width:767px 内），电脑端那一行照常显示。 */
+      .dsh-claude-account-btn {
+        display: none !important;
+        content-visibility: hidden !important;
+        width: 0 !important;
+        height: 0 !important;
+        min-width: 0 !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: hidden !important;
+        pointer-events: none !important;
+      }
+      /* 皮肤在侧边栏底部"接管"的那一行（账户宿主行）同样不能占高度 */
+      [data-dsh-claude-account-host-row] {
+        display: none !important;
+        content-visibility: hidden !important;
+        width: 0 !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: hidden !important;
+        pointer-events: none !important;
+      }
+      /* 账户浮层：手机端整体禁用（入口已隐藏，浮层不该还能被唤出） */
+      .dsh-claude-account-popover {
+        display: none !important;
+      }
+
       /* 输入框底座：DeepSeek App 居中及底部固定 */
       div[class*="__F_CONV__scrollBody"] {
         padding-bottom: max(16px, env(safe-area-inset-bottom)) !important;

@@ -144,9 +144,52 @@ if (!healthy) {
     `btn.transform="${cleaned.btnTransform}" pop.transform="${cleaned.popTransform}" dx=${cleaned.dx} dy=${cleaned.dy}`);
 }
 
-// 电脑端红线
+// ── 手机端隐藏底部「账户按钮」（用户说的 wb cn 700 那一行）────────────────────
+const accountProbe = () => page.evaluate(() => {
+  const info = (el) => {
+    if (!el) return null;
+    const b = el.getBoundingClientRect();
+    const cs = getComputedStyle(el);
+    return { w: Math.round(b.width), h: Math.round(b.height), display: cs.display, visible: cs.display !== 'none' && b.width > 0 && b.height > 0 };
+  };
+  return {
+    btn: info(document.querySelector('.dsh-claude-account-btn')),
+    btnText: (document.querySelector('.dsh-claude-account-btn')?.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40),
+    hostRow: info(document.querySelector('[data-dsh-claude-account-host-row]')),
+    popover: info(document.querySelector('.dsh-claude-account-popover')),
+    // 不能被误伤的东西
+    card: info(document.querySelector('[data-composer-card]')),
+    row: info(document.querySelector('div[class*="uV2eYG_row"]')),
+    model: info(document.querySelector('.dsh-claude-model-btn')),
+    effort: info(document.querySelector('.dsh-claude-effort-btn')),
+    send: info(document.querySelector('button[class*="uV2eYG_primary"]')),
+  };
+});
+
+for (const w of [320, 390, 430]) {
+  await page.setViewport({ width: w, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  await sleep(900);
+  const a = await accountProbe();
+  if (a.btn) {
+    say(`${w}px: 底部「账户按钮」已隐藏（wb cn 700 那一行）`, a.btn.w === 0 && a.btn.h === 0 && !a.btn.visible,
+      `盒子=${a.btn.w}×${a.btn.h} display=${a.btn.display} 文本="${a.btnText}"`);
+  } else {
+    say(`${w}px: 页面上没有账户按钮（无需隐藏）`, true, '元素不存在');
+  }
+  say(`${w}px: 输入卡片与工具行未被误伤`, (a.card?.h ?? 0) >= 60 && (a.row?.w ?? 0) > 100,
+    `card=${a.card?.w}×${a.card?.h} row=${a.row?.w}×${a.row?.h}`);
+  say(`${w}px: 模型 / 思考强度 / 发送 三个控件仍在`, (a.model?.visible ?? false) && (a.effort?.visible ?? false) && (a.send?.visible ?? false),
+    `model=${a.model?.visible} effort=${a.effort?.visible} send=${a.send?.visible}`);
+}
+
+// 电脑端红线：账户按钮必须照常显示
 await page.setViewport({ width: 1280, height: 800, deviceScaleFactor: 1 });
 await sleep(900);
+const desk = await accountProbe();
+say('电脑端：账户按钮照常显示（移动端规则不生效）', desk.btn?.visible === true,
+  `盒子=${desk.btn?.w}×${desk.btn?.h} display=${desk.btn?.display}`);
+if (desk.btn?.visible !== true) fail++;
+
 const desktop = await probe();
 say('电脑端：我们的移动端规则不生效（trailing 不强制 max-content、modes 不横滑）',
   desktop.trailingMaxWidth !== 'max-content' && desktop.modesOverflowX !== 'auto',

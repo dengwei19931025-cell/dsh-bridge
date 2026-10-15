@@ -677,6 +677,45 @@ var MOBILE_STYLES_CSS = `
         right: 0 !important;
       }
 
+      /* \u624B\u673A\u7AEF\u9690\u85CF\u5E95\u90E8\u300C\u8D26\u6237\u6309\u94AE\u300D\uFF08\u76AE\u80A4 dsh-claude-style \u81EA\u7ED8\u7684\u8D26\u6237\u5165\u53E3\uFF0C\u5373\u7528\u6237\u8BF4\u7684
+         \u300Cwb cn 700\u300D\u90A3\u4E00\u884C\uFF1A\u5934\u50CF + \u6E20\u9053\u540D + \u79EF\u5206 + \u7BAD\u5934\uFF09\u3002
+         \u80CC\u666F\uFF08\u7528\u6237\u660E\u786E\u8981\u6C42\uFF09\uFF1A\u624B\u673A\u7AEF\u8FD9\u4E00\u884C\u65E2\u5360\u5730\u65B9\uFF0C\u53C8\u628A\u6E20\u9053/\u79EF\u5206\u8FD9\u7C7B\u4FE1\u606F\u9732\u5728\u9762\u4E0A\u3002
+         \u26A0\uFE0F \u5B9E\u6D4B\u8BE5\u6309\u94AE**\u6CA1\u6709 inline style**\uFF08display \u6765\u81EA\u76AE\u80A4 CSS\uFF09\uFF0C\u6240\u4EE5
+         display:none !important \u80FD\u7A33\u5B9A\u76D6\u4F4F\uFF1B\u4F46\u76AE\u80A4\u662F\u53D7\u63A7\u7EC4\u4EF6\uFF0C\u5C06\u6765\u67D0\u6B21\u6539\u52A8
+         \u53EF\u80FD\u5F00\u59CB\u5199 inline display \u2014\u2014 \u90A3\u65F6\u540C\u6743\u91CD\u89C4\u5219\u4F1A\u88AB inline \u6253\u8D25\u3002
+         \u6545\uFF1A\u2460 CSS \u7528 display:none + content-visibility \u53CC\u4FDD\u9669\uFF08\u76D2\u5B50\u4E0E\u5B50\u6811\u90FD\u4E0D\u6E32\u67D3\uFF09\uFF1B
+         \u2461 client/index.js \u7684 setupAccountHide() \u7528 MutationObserver \u515C\u5E95\uFF0C\u4E00\u65E6\u76AE\u80A4
+         \u628A display \u5199\u56DE inline-flex \u5C31\u518D\u538B\u4E00\u6B21\uFF08\u76F8\u5F53\u4E8E"\u9632\u590D\u6D3B"\uFF09\u3002
+         \u26A0\uFE0F \u53EA\u5F71\u54CD\u624B\u673A\u7AEF\uFF08\u672C\u5757\u5728 max-width:767px \u5185\uFF09\uFF0C\u7535\u8111\u7AEF\u90A3\u4E00\u884C\u7167\u5E38\u663E\u793A\u3002 */
+      .dsh-claude-account-btn {
+        display: none !important;
+        content-visibility: hidden !important;
+        width: 0 !important;
+        height: 0 !important;
+        min-width: 0 !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: hidden !important;
+        pointer-events: none !important;
+      }
+      /* \u76AE\u80A4\u5728\u4FA7\u8FB9\u680F\u5E95\u90E8"\u63A5\u7BA1"\u7684\u90A3\u4E00\u884C\uFF08\u8D26\u6237\u5BBF\u4E3B\u884C\uFF09\u540C\u6837\u4E0D\u80FD\u5360\u9AD8\u5EA6 */
+      [data-dsh-claude-account-host-row] {
+        display: none !important;
+        content-visibility: hidden !important;
+        width: 0 !important;
+        height: 0 !important;
+        min-height: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: hidden !important;
+        pointer-events: none !important;
+      }
+      /* \u8D26\u6237\u6D6E\u5C42\uFF1A\u624B\u673A\u7AEF\u6574\u4F53\u7981\u7528\uFF08\u5165\u53E3\u5DF2\u9690\u85CF\uFF0C\u6D6E\u5C42\u4E0D\u8BE5\u8FD8\u80FD\u88AB\u5524\u51FA\uFF09 */
+      .dsh-claude-account-popover {
+        display: none !important;
+      }
+
       /* \u8F93\u5165\u6846\u5E95\u5EA7\uFF1ADeepSeek App \u5C45\u4E2D\u53CA\u5E95\u90E8\u56FA\u5B9A */
       div[class*="__F_CONV__scrollBody"] {
         padding-bottom: max(16px, env(safe-area-inset-bottom)) !important;
@@ -7530,6 +7569,31 @@ function setupIosKeyboardAdapter() {
     }
   });
 }
+function setupAccountHide() {
+  if (typeof window === "undefined" || typeof document === "undefined") return;
+  if (typeof MutationObserver !== "function") return;
+  if (window.innerWidth > MOBILE_MAX_WIDTH) return;
+  const isMobileNow = () => window.innerWidth <= MOBILE_MAX_WIDTH;
+  const kill = (el) => {
+    if (!el || el.dataset.dshBridgeHidden === "1") return;
+    el.dataset.dshBridgeHidden = "1";
+    el.style.setProperty("display", "none", "important");
+  };
+  const sweep = () => {
+    if (!isMobileNow()) return;
+    for (const el of document.querySelectorAll(".dsh-claude-account-btn, [data-dsh-claude-account-host-row], .dsh-claude-account-popover")) {
+      const cs = getComputedStyle(el);
+      const b = el.getBoundingClientRect();
+      if (cs.display !== "none" && (b.width > 0 || b.height > 0)) kill(el);
+    }
+  };
+  const obs = new MutationObserver(sweep);
+  obs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "class", "data-open"] });
+  window.addEventListener("resize", () => {
+    if (isMobileNow()) sweep();
+  }, { passive: true });
+  sweep();
+}
 function setupEffortAnchor() {
   if (typeof window === "undefined" || typeof document === "undefined") return;
   if (typeof requestAnimationFrame !== "function") return;
@@ -7736,6 +7800,7 @@ function apply(ctx) {
   if (pageTweaksOn) {
     setupIosKeyboardAdapter();
     setupEffortAnchor();
+    setupAccountHide();
     setupComposerCollapse();
     setupMobileExperience(rpcCall, ctx);
   }

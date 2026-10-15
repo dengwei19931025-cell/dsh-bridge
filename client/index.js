@@ -5106,6 +5106,40 @@ function setupIosKeyboardAdapter() {
   });
 }
 
+// 手机端隐藏皮肤自绘的「账户按钮」（.dsh-claude-account-btn，即用户说的
+// "wb cn 700"那一行：头像 + 渠道名 + 积分 + 箭头）。
+//
+// CSS 侧（mobile-styles.js）已用 display:none !important 压住；本函数只做**兜底**：
+// 该按钮是皮肤里的受控 React 组件，将来某次改动可能开始把 display 写进 inline style
+// （inline 会打败我们的 !important 规则）。这里用 MutationObserver 盯着，一旦发现它
+// 以可见状态回来，就再压一次 —— 相当于"防复活"。
+// ⚠️ 只在手机端生效；电脑端那一行照常显示。
+function setupAccountHide() {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+  if (typeof MutationObserver !== 'function') return;
+  if (window.innerWidth > MOBILE_MAX_WIDTH) return;
+
+  const isMobileNow = () => window.innerWidth <= MOBILE_MAX_WIDTH;
+  const kill = (el) => {
+    if (!el || el.dataset.dshBridgeHidden === '1') return;
+    el.dataset.dshBridgeHidden = '1';
+    el.style.setProperty('display', 'none', 'important');
+  };
+  const sweep = () => {
+    if (!isMobileNow()) return;
+    for (const el of document.querySelectorAll('.dsh-claude-account-btn, [data-dsh-claude-account-host-row], .dsh-claude-account-popover')) {
+      const cs = getComputedStyle(el);
+      const b = el.getBoundingClientRect();
+      if (cs.display !== 'none' && (b.width > 0 || b.height > 0)) kill(el);
+    }
+  };
+
+  const obs = new MutationObserver(sweep);
+  obs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class', 'data-open'] });
+  window.addEventListener('resize', () => { if (isMobileNow()) sweep(); }, { passive: true });
+  sweep();
+}
+
 // 把皮肤的「思考强度」按钮贴回模型按钮右侧（移动端）。
 //
 // 背景（用户在 iOS 上报："打开键盘后思考强度 High 跑到外面去了"）：
@@ -5350,6 +5384,7 @@ function apply(ctx) {
   if (pageTweaksOn) {
     setupIosKeyboardAdapter();
     setupEffortAnchor();
+    setupAccountHide();
     setupComposerCollapse();
 
     setupMobileExperience(rpcCall, ctx);

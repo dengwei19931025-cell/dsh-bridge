@@ -103,6 +103,35 @@ test('产物同步：client.js 里必须带上该修正（否则跑 npm run buil
   assert.doesNotMatch(source, new RegExp(composerHash + '_trailing'), '不得硬编码宿主哈希，必须走占位符');
 });
 
+test('手机端隐藏皮肤自绘的「账户按钮」（用户说的 wb cn 700 那一行）', () => {
+  // CSS 侧：display:none + content-visibility 双保险，且只作用于手机端
+  const accountRule = cssNoComment.match(/\.dsh-claude-account-btn\s*\{([^}]*)\}/);
+  assert.ok(accountRule, '必须有一条 .dsh-claude-account-btn 规则');
+  assert.match(accountRule[1], /display:\s*none\s*!important/, '账户按钮必须 display:none');
+  assert.match(accountRule[1], /content-visibility:\s*hidden\s*!important/, '并加 content-visibility 双保险');
+  assert.match(accountRule[1], /pointer-events:\s*none\s*!important/, '不能残留误触');
+  // 限定在手机端
+  const idx = cssNoComment.indexOf('.dsh-claude-account-btn');
+  const opens = (cssNoComment.slice(0, idx).match(/\{/g) || []).length;
+  const closes = (cssNoComment.slice(0, idx).match(/\}/g) || []).length;
+  assert.equal(opens - closes, 1, '账户按钮规则必须在 max-width:767px 块内（电脑端不许动）');
+  // 侧边栏底部"接管行"与浮层也要一起收掉
+  assert.match(cssNoComment, /\[data-dsh-claude-account-host-row\]\s*\{[^}]*display:\s*none\s*!important/,
+    '侧边栏底部账户宿主行也必须隐藏，否则仍占一行高度');
+  assert.match(cssNoComment, /\.dsh-claude-account-popover\s*\{[^}]*display:\s*none\s*!important/,
+    '账户浮层必须一起禁用（入口已隐藏，浮层不该还能被唤出）');
+});
+
+test('账户按钮的"防复活"兜底：setupAccountHide 已实现并调用', () => {
+  assert.match(clientIndex, /function setupAccountHide\(\)/, '必须实现 setupAccountHide');
+  assert.match(clientIndex, /setupAccountHide\(\);/, '必须在插件入口调用');
+  assert.match(clientIndex, /innerWidth > MOBILE_MAX_WIDTH/, '必须只在手机端生效');
+  assert.match(clientIndex, /MutationObserver/, '必须用 MutationObserver 兜底：皮肤是受控组件，'
+    + '将来若把 display 写进 inline style，inline 会打败我们的 !important 规则');
+  assert.match(clientIndex, /dsh-claude-account-btn/, '必须覆盖账户按钮本体');
+  assert.ok(rawBundle.includes('dsh-claude-account-btn'), '产物里必须带上，请重新构建');
+});
+
 // ── 「思考强度」是皮肤画的 fixed 元素，不在行内：必须补偿 iOS 键盘造成的坐标漂移 ──────────
 //
 // 实测事实（本文件顶部说明的延伸）：
