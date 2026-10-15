@@ -132,6 +132,31 @@ test('账户按钮的"防复活"兜底：setupAccountHide 已实现并调用', (
   assert.ok(rawBundle.includes('dsh-claude-account-btn'), '产物里必须带上，请重新构建');
 });
 
+test('手机端隐藏输入区「用量/积分」统计徽标（用户上报的 WB CN · 7 那一条）', () => {
+  // 实测定位：宿主把统计渲染在 [data-composer-stats] 容器里，条目是 [data-composer-stat]
+  // （锚点 span.bOPqQW_anchor），挂在 uV2eYG_dock；第三方插件也会往同一槽位塞"渠道+积分"。
+  // 手机端聚焦输入框后 body 带 data-dsh-claude-composer-active，皮肤按
+  // data-dsh-claude-stats-position=context 把它上抬进底部工具行 → 压住权限胶囊
+  // （实测把「完全权限」压成「完全节」）。
+  const statsRule = cssNoComment.match(/\[data-composer-stats\],\s*\[data-composer-stat\]\s*\{([^}]*)\}/);
+  assert.ok(statsRule, '必须有一条同时覆盖 [data-composer-stats] 与 [data-composer-stat] 的规则');
+  assert.match(statsRule[1], /display:\s*none\s*!important/,
+    '统计徽标必须 display:none !important —— 宿主可能用普通样式或第三方插件用 inline 把它显示出来，'
+    + '只有 !important 才压得住');
+  // 上抬位移也要清零（双保险）
+  assert.match(cssNoComment, /body\[data-dsh-claude-composer-active\]\s*\{[^}]*--dsh-claude-mobile-stats-lift:\s*0px\s*!important/,
+    '必须把皮肤的移动端统计上抬位移清零（--dsh-claude-mobile-stats-lift）');
+  // 两条都必须限定在手机端
+  for (const anchor of ['[data-composer-stats],', 'body[data-dsh-claude-composer-active]']) {
+    const i = cssNoComment.indexOf(anchor);
+    assert.ok(i > 0, `找不到 ${anchor}`);
+    const opens = (cssNoComment.slice(0, i).match(/\{/g) || []).length;
+    const closes = (cssNoComment.slice(0, i).match(/\}/g) || []).length;
+    assert.equal(opens - closes, 1, `${anchor} 必须在 max-width:767px 块内（电脑端统计要照常显示）`);
+  }
+  assert.ok(rawBundle.includes('data-composer-stat'), '产物里必须带上，请重新构建');
+});
+
 // ── 「思考强度」是皮肤画的 fixed 元素，不在行内：必须补偿 iOS 键盘造成的坐标漂移 ──────────
 //
 // 实测事实（本文件顶部说明的延伸）：

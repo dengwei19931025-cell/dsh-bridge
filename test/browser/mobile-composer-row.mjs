@@ -190,6 +190,82 @@ say('电脑端：账户按钮照常显示（移动端规则不生效）', desk.b
   `盒子=${desk.btn?.w}×${desk.btn?.h} display=${desk.btn?.display}`);
 if (desk.btn?.visible !== true) fail++;
 
+// ── 手机端隐藏输入区「用量/积分」统计徽标（用户上报的 WB CN · 7）──────────────────
+// 复现要点：① 宿主把统计显式显示出来（普通样式，无 !important）；
+//          ② 第三方插件往同一槽位追加"渠道+积分"芯片（inline display，无 !important）。
+// 断言：手机端两者都必须被我们的 !important 规则压成不可见，且不与权限区重叠；
+//      电脑端我们的规则不生效（上抬位移变量不被清零）。
+const showHostStats = () => page.evaluate(() => {
+  if (document.getElementById('sim-host-stats')) return;
+  const s = document.createElement('style');
+  s.id = 'sim-host-stats';
+  s.textContent = '[data-composer-stats],[data-composer-stat]{display:inline-flex;position:static;height:20px;width:auto;visibility:visible;opacity:1;}';
+  document.body.appendChild(s);
+});
+const addThirdPartyChip = () => page.evaluate(() => {
+  if (document.getElementById('sim-third-party-chip')) return;
+  const host = document.querySelector('[data-composer-stats]')?.parentElement
+    || document.querySelector('div[class*="_dock"]') || document.body;
+  const chip = document.createElement('span');
+  chip.id = 'sim-third-party-chip';
+  chip.setAttribute('data-composer-stat', '');
+  chip.style.display = 'inline-flex';
+  chip.style.height = '20px';
+  chip.textContent = 'WB CN · 7';
+  host.appendChild(chip);
+});
+const statsProbe = () => page.evaluate(() => {
+  const cs = (el, p) => (el ? getComputedStyle(el)[p] : null);
+  const box = (el) => { if (!el) return null; const b = el.getBoundingClientRect(); return { l: Math.round(b.left), r: Math.round(b.right), t: Math.round(b.top), b: Math.round(b.bottom), w: Math.round(b.width), h: Math.round(b.height) }; };
+  const items = [...document.querySelectorAll('[data-composer-stat]')];
+  const visible = items.filter((el) => cs(el, 'display') !== 'none' && el.getBoundingClientRect().width > 0);
+  const modes = document.querySelector('div[class*="_modes"]');
+  const mb = box(modes);
+  const overlap = visible.filter((el) => {
+    const b = box(el);
+    return mb && b && !(b.b < mb.t || b.t > mb.b || b.r < mb.l || b.l > mb.r);
+  }).length;
+  const chip = document.getElementById('sim-third-party-chip');
+  return {
+    statItems: items.length,
+    visibleStats: visible.length,
+    chipDisplay: chip ? cs(chip, 'display') : null,
+    chipW: chip ? Math.round(chip.getBoundingClientRect().width) : null,
+    modesText: modes ? (modes.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 24) : null,
+    overlapWithModes: overlap,
+    lift: getComputedStyle(document.body).getPropertyValue('--dsh-claude-mobile-stats-lift').trim(),
+  };
+});
+
+await page.evaluate(() => { const el = document.querySelector('[data-composer-input] [contenteditable="true"], [data-composer-input] textarea'); if (el) el.click(); });
+await sleep(1200);
+for (const w of [320, 390, 430]) {
+  await page.setViewport({ width: w, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  await sleep(900);
+  await page.evaluate(() => { const el = document.querySelector('[data-composer-input] [contenteditable="true"], [data-composer-input] textarea'); if (el) el.click(); });
+  await sleep(900);
+  await showHostStats();
+  await addThirdPartyChip();
+  await sleep(700);
+  const s = await statsProbe();
+  say(`${w}px: 输入区用量/积分统计已隐藏（宿主显式显示也压得住）`, s.statItems > 0 && s.visibleStats === 0,
+    `条目=${s.statItems} 可见=${s.visibleStats} 上抬位移=${s.lift || '(未设置)'}`);
+  say(`${w}px: 第三方「WB CN · 7」芯片被隐藏（inline display 也压得住）`, s.chipDisplay === 'none' && s.chipW === 0,
+    `display=${s.chipDisplay} w=${s.chipW}`);
+  say(`${w}px: 统计与权限区不再重叠（权限标签完整可读）`, s.overlapWithModes === 0,
+    `重叠数=${s.overlapWithModes} 权限区文本="${s.modesText}"`);
+}
+
+// 电脑端红线：我们的统计隐藏规则不生效
+await page.setViewport({ width: 1280, height: 800, deviceScaleFactor: 1 });
+await sleep(1000);
+await showHostStats();
+await sleep(700);
+const deskStats = await statsProbe();
+say('电脑端：统计隐藏规则不生效（上抬位移变量未被我们清零）', deskStats.lift !== '0px',
+  `--dsh-claude-mobile-stats-lift=${deskStats.lift || '(未设置)'}`);
+if (deskStats.lift === '0px') fail++;
+
 const desktop = await probe();
 say('电脑端：我们的移动端规则不生效（trailing 不强制 max-content、modes 不横滑）',
   desktop.trailingMaxWidth !== 'max-content' && desktop.modesOverflowX !== 'auto',

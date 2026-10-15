@@ -691,6 +691,26 @@ export const MOBILE_STYLES_CSS = `
         display: none !important;
       }
 
+      /* 手机端隐藏输入区「用量 / 积分」统计徽标 —— 用户上报的那行「WB CN · 7」。
+         实测定位：它由宿主渲染在输入卡片下方（[data-composer-stats] 容器 +
+         [data-composer-stat] 条目，锚点是 span.bOPqQW_anchor，挂在 uV2eYG_dock 里）；
+         第三方插件（如接入渠道的插件）也会往同一槽位塞"渠道 + 积分"。
+         我这边会话里两条是「29 轮 687 步·189 tok/s」「254M tok·缓存命中 96%」，
+         用户手机上多一条渠道积分（WB CN · 7）。
+         为什么会在手机端"压住"权限控件：聚焦输入框后 body 会带上
+         data-dsh-claude-composer-active，皮肤随即按 data-dsh-claude-stats-position=context
+         把这些统计**上抬进底部工具行**（--dsh-claude-mobile-stats-lift），
+         于是它和权限胶囊重叠 —— 实测把「完全权限」压成「完全节」，
+         看起来就像"模型切换的位置被积分占了"。
+         做法：手机端整行统计不渲染，并把上抬位移清零（双保险）。 */
+      [data-composer-stats],
+      [data-composer-stat] {
+        display: none !important;
+      }
+      body[data-dsh-claude-composer-active] {
+        --dsh-claude-mobile-stats-lift: 0px !important;
+      }
+
       /* 输入框底座：DeepSeek App 居中及底部固定 */
       div[class*="__F_CONV__scrollBody"] {
         padding-bottom: max(16px, env(safe-area-inset-bottom)) !important;
