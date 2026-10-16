@@ -56,16 +56,31 @@ test('槽位表：COMPOSER 必须收录 trailing / tools / modes（本修正直�
   }
 });
 
-test('右侧 [模型 | 思考强度 | 发送] 绝不收缩 —— 这是"强度按钮跑出行外"的根治点', () => {
+test('长模型名不得把「思考强度」顶出卡片（2026-10-16 回归修正）', () => {
+  // 真因：皮肤把「思考强度」做成 body 下的 position:fixed 元素，按「模型按钮右缘 + 2px」
+  // 定位。所以"模型名越长 → 强度按钮越靠右"。旧写法 trailing{0 0 auto; min-width:max-content}
+  // 虽保住了强度按钮不被压扁，却也保住了长模型名不被截断 → 390px 实测余量只剩 1px。
+  // 新不变量：**强度 / 发送 保持原尺寸，模型名才是唯一让位者**。
   assert.ok(trailing, '必须有一条 trailing 规则');
-  assert.match(trailing, /flex:\s*0 0 auto\s*!important/,
-    'trailing 必须 flex:0 0 auto：一旦允许收缩，宿主的 standardControls 会被压到 0，'
-    + '固定宽度的「思考强度」按钮就会溢出到输入卡片之外（320px 实测溢出 39px）');
-  assert.match(trailing, /min-width:\s*max-content\s*!important/,
-    'trailing 必须 min-width:max-content：连 min-width:0 都不能留，否则仍可被压到内容以下');
+  assert.match(trailing, /flex:\s*0 1 auto\s*!important/,
+    'trailing 必须允许收缩（0 1 auto）：否则长模型名顶不动，fixed 的强度按钮会被顶出卡片');
+  assert.match(trailing, /min-width:\s*0\s*!important/, 'trailing 必须 min-width:0，否则收缩无从发生');
   assert.match(trailing, /justify-content:\s*flex-end\s*!important/, '右侧组必须右对齐');
-  assert.doesNotMatch(trailing, /flex:\s*1 1 auto/, '不得改回 flex:1 1 auto（回归点）');
-  assert.doesNotMatch(trailing, /min-width:\s*0\b/, '不得改回 min-width:0（回归点）');
+
+  // 模型按钮必须限宽 + 省略号（可见的是皮肤自绘的 .dsh-claude-model-btn，不是宿主槽位）
+  const skinBtn = cssNoComment.match(/\.dsh-claude-model-btn\s*\{([^}]*)\}/);
+  assert.ok(skinBtn, '必须直接限宽皮肤自绘的模型按钮（限宿主槽位无效，实测过）');
+  assert.match(skinBtn[1], /max-width:\s*\d+px\s*!important/, '模型按钮必须有 max-width 上限');
+  assert.match(skinBtn[1], /overflow:\s*hidden\s*!important/, '配合限宽裁掉多余内容');
+  const label = cssNoComment.match(/\.dsh-claude-model-btn-label\s*\{([^}]*)\}/);
+  assert.ok(label, '必须有 .dsh-claude-model-btn-label 规则');
+  assert.match(label[1], /text-overflow:\s*ellipsis\s*!important/, '模型名必须走省略号');
+  assert.match(label[1], /white-space:\s*nowrap\s*!important/, '模型名必须单行不换行');
+  assert.match(label[1], /overflow:\s*hidden\s*!important/, '配合 ellipsis 生效');
+
+  // 宿主槽位的旧 180px 上限要跟着降到同一量级，避免两套规则打架
+  const modelRoot = ruleFor('MODEL__root') || cssNoComment.match(/__F_MODEL__root[^{]*\{([^}]*)\}/)?.[1];
+  if (modelRoot) assert.doesNotMatch(modelRoot, /max-width:\s*180px/, '槽位 180px 上限已过时，别留两套打架的规则');
 });
 
 test('左侧权限区负责让位：可收缩 + 可横滑（否则窄屏整体溢出）', () => {

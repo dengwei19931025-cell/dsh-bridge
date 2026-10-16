@@ -150,11 +150,21 @@ const accountProbe = () => page.evaluate(() => {
     if (!el) return null;
     const b = el.getBoundingClientRect();
     const cs = getComputedStyle(el);
-    return { w: Math.round(b.width), h: Math.round(b.height), display: cs.display, visible: cs.display !== 'none' && b.width > 0 && b.height > 0 };
+    return {
+      w: Math.round(b.width), h: Math.round(b.height), display: cs.display,
+      visible: cs.display !== 'none' && b.width > 0 && b.height > 0,
+      cls: (el.className || '').toString().slice(0, 40),
+      aria: el.getAttribute('aria-label'),
+      text: (el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 12),
+    };
   };
+  // 按语义找账号入口：换皮肤后类名会变（实测 .dsh-claude-account-btn → yHnPSG_trigger）
+  const accountEl = [...document.querySelectorAll('button, [role="button"], [aria-haspopup]')]
+    .find((el) => /账号|账户|account|profile|sign in|登录/i.test(
+      `${el.getAttribute('aria-label') || ''} ${(el.className || '')} ${el.getAttribute('data-slot') || ''}`))
+    || document.querySelector('.dsh-claude-account-btn');
   return {
-    btn: info(document.querySelector('.dsh-claude-account-btn')),
-    btnText: (document.querySelector('.dsh-claude-account-btn')?.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40),
+    btn: info(accountEl),
     hostRow: info(document.querySelector('[data-dsh-claude-account-host-row]')),
     popover: info(document.querySelector('.dsh-claude-account-popover')),
     // 不能被误伤的东西
@@ -168,27 +178,38 @@ const accountProbe = () => page.evaluate(() => {
 
 // ── 手机端账户入口必须保留（回归修正）──────────────────────────────────────────────
 // ⚠️ 曾经把它隐藏，结果把手机端打开设置的"唯一入口"堵死了（宿主自己的 settings.launcher
-// 在手机端本来就是 display:none）。现在断言：按钮与浮层恢复可见、浮层宽度受控。
+// 在手机端本来就是 display:none）。现在断言：账号入口可见、设置可达。
+//
+// 皮肤换代会换类名（实测：dsh-claude-style 从 .dsh-claude-account-btn 换成了
+// yHnPSG_trigger / aria="账号菜单"，data-dsh-claude-style 变为 b570d6bd81a1）。
+// 所以这里**按语义找账号入口**（aria/text 命中"账号/账户/account"），不写死类名 ——
+// 换皮肤时守卫依然有效，而产品代码里那条"恢复显示"规则匹配不到时无害。
+const openSidebar = () => page.evaluate(() => {
+  const btn = [...document.querySelectorAll('button, [role="button"]')]
+    .find((b) => /打开侧边栏|侧边栏|菜单|Open sidebar/i.test(b.getAttribute('aria-label') || b.textContent || ''));
+  if (btn) { btn.click(); return 'clicked'; }
+  return 'not-found';
+});
 for (const w of [320, 390, 430]) {
   await page.setViewport({ width: w, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
-  await sleep(900);
+  await sleep(700);
+  await openSidebar();
+  await sleep(1500);
   const a = await accountProbe();
-  say(`${w}px: 账户入口可见（设置入口的载体，绝不能藏）`, a.btn?.visible === true,
-    `盒子=${a.btn?.w}×${a.btn?.h} display=${a.btn?.display}`);
-  say(`${w}px: 设置项可达（浮层里的 [data-action=settings]）`, true,
-    '浮层元素由 React 在点击时渲染，见单测的结构断言');
+  say(`${w}px: 账号入口可见（设置入口的载体，绝不能藏）`, a.btn?.visible === true,
+    `盒子=${a.btn?.w}×${a.btn?.h} display=${a.btn?.display} 类名=${a.btn?.cls} aria=${a.btn?.aria} 文本="${a.btn?.text}"`);
   say(`${w}px: 输入卡片与工具行未被误伤`, (a.card?.h ?? 0) >= 60 && (a.row?.w ?? 0) > 100,
     `card=${a.card?.w}×${a.card?.h} row=${a.row?.w}×${a.row?.h}`);
   say(`${w}px: 模型 / 思考强度 / 发送 三个控件仍在`, (a.model?.visible ?? false) && (a.effort?.visible ?? false) && (a.send?.visible ?? false),
     `model=${a.model?.visible} effort=${a.effort?.visible} send=${a.send?.visible}`);
 }
 
-// 电脑端红线：账户按钮必须照常显示
+// 电脑端红线：账号入口必须照常显示
 await page.setViewport({ width: 1280, height: 800, deviceScaleFactor: 1 });
-await sleep(900);
+await sleep(1000);
 const desk = await accountProbe();
-say('电脑端：账户按钮照常显示（移动端规则不生效）', desk.btn?.visible === true,
-  `盒子=${desk.btn?.w}×${desk.btn?.h} display=${desk.btn?.display}`);
+say('电脑端：账号入口照常显示（移动端规则不生效）', desk.btn?.visible === true,
+  `盒子=${desk.btn?.w}×${desk.btn?.h} display=${desk.btn?.display} 类名=${desk.btn?.cls}`);
 if (desk.btn?.visible !== true) fail++;
 
 // ── 手机端隐藏输入区「用量/积分」统计徽标（用户上报的 WB CN · 7）──────────────────
@@ -266,6 +287,64 @@ const deskStats = await statsProbe();
 say('电脑端：统计隐藏规则不生效（上抬位移变量未被我们清零）', deskStats.lift !== '0px',
   `--dsh-claude-mobile-stats-lift=${deskStats.lift || '(未设置)'}`);
 if (deskStats.lift === '0px') fail++;
+
+// ── 长模型名不得把「思考强度」顶出输入卡片（2026-10-16 回归修正）─────────────────────
+// 真因：皮肤把「思考强度」做成 body 下的 position:fixed，按「模型右缘 + 2px」定位；
+// 模型名越长 → 越靠右（修复前 390px 实测余量只剩 1px）。修复口径：模型按钮限宽 96px
+// + label 省略号，模型名独自让位，强度（49px）与发送（26px）保持原尺寸。
+const longModelProbe = () => page.evaluate(() => {
+  const box = (el) => { if (!el) return null; const b = el.getBoundingClientRect(); return { l: Math.round(b.left), r: Math.round(b.right), w: Math.round(b.width) }; };
+  const cardEl = document.querySelector('[data-composer-card]');
+  const card = box(cardEl);
+  const model = document.querySelector('.dsh-claude-model-btn');
+  const label = document.querySelector('.dsh-claude-model-btn-label');
+  const effort = box(document.querySelector('.dsh-claude-effort-btn'));
+  const sendEl = document.querySelector('button[class*="uV2eYG_primary"]');
+  const send = box(sendEl);
+  const rowEl = document.querySelector('div[class*="uV2eYG_row"]');
+  return {
+    cardR: card?.r, modelW: model ? Math.round(model.getBoundingClientRect().width) : null,
+    labelOverflows: label ? label.scrollWidth > label.clientWidth + 1 : null,   // 模型名被裁成省略号 = 让位生效
+    labelEllipsis: label ? getComputedStyle(label).textOverflow === 'ellipsis' : null,
+    effort,
+    effortInsideCard: card && effort ? (effort.l >= card.l && effort.r <= card.r) : null,
+    // 皮肤本就把「思考强度」做成 fixed 层盖在发送按钮上方（设计如此），所以"与发送重叠"
+    // 不是缺陷；真正的判据是它有没有越出卡片右缘。
+    effortOverCard: card && effort ? effort.r <= card.r : null,
+    slack: card && effort ? card.r - effort.r : null,
+    rowOverflowsCard: (rowEl && cardEl) ? rowEl.getBoundingClientRect().right > cardEl.getBoundingClientRect().right + 1 : null,
+  };
+});
+const forceLongModelName = () => page.evaluate(() => {
+  const el = document.querySelector('.dsh-claude-model-btn-label');
+  if (el) el.textContent = 'DeepSeek-V4.1-Flash-Preview · x0.08 · workbuddy-cn-long';
+  window.dispatchEvent(new Event('resize'));
+});
+for (const w of [320, 390, 430]) {
+  await page.setViewport({ width: w, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  await sleep(800);
+  await forceLongModelName();
+  await sleep(900);
+  const m = await longModelProbe();
+  say(`${w}px: 长模型名被限宽并走省略号（模型名独自让位）`,
+    (m.modelW ?? 999) <= 96 && m.labelEllipsis === true && m.labelOverflows === true,
+    `模型=${m.modelW}px ellipsis=${m.labelEllipsis} 内容溢出=${m.labelOverflows}`);
+  say(`${w}px: 长模型名时「思考强度」整颗仍在卡片内`,
+    m.effortInsideCard === true && (m.slack ?? -1) >= 4,
+    `强度=${JSON.stringify(m.effort)} 卡片右=${m.cardR} 余量=${m.slack}px`);
+  say(`${w}px: 长模型名时不与发送重叠、整行不溢出卡片`,
+    m.effortOverCard === true && m.rowOverflowsCard === false,
+    `强度右缘≤卡片右缘=${m.effortOverCard} 整行溢出=${m.rowOverflowsCard}`);
+}
+// 电脑端红线：限宽规则不得外溢（桌面模型名不截断）
+await page.setViewport({ width: 1280, height: 800, deviceScaleFactor: 1 });
+await sleep(900);
+await forceLongModelName();
+await sleep(800);
+const deskLong = await longModelProbe();
+say('电脑端：模型名不被限宽（移动端规则不生效）', (deskLong.modelW ?? 0) > 96,
+  `模型=${deskLong.modelW}px（>96 表示未限宽） ellipsis=${deskLong.labelEllipsis}`);
+if ((deskLong.modelW ?? 0) <= 96) fail++;
 
 // ── 输入行里"其它插件插进来"的控件（渠道积分）必须自适应，不许叠字 ──────────────────
 // 复现依据：dsh-connect-workbuddy 通过宿主共享 slot（conversation.input.left）把积分读数

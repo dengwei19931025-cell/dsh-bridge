@@ -880,15 +880,40 @@ var MOBILE_STYLES_CSS = `
         align-items: center !important;
         justify-content: flex-end !important;
         gap: 6px !important;
-        /* \u26A0\uFE0F 0 0 auto + min-width:max-content\uFF1A\u7EDD\u4E0D\u6536\u7F29\uFF0C\u89C1\u672C\u6BB5\u9876\u90E8\u8BF4\u660E */
-        flex: 0 0 auto !important;
-        min-width: max-content !important;
+        /* \u26A0\uFE0F \u957F\u6A21\u578B\u540D\u56DE\u5F52\u4FEE\u6B63\uFF082026-10-16\uFF09\uFF1A\u4E4B\u524D\u8FD9\u91CC\u662F 0 0 auto + min-width:max-content\uFF0C
+           \u60F3\u7740"\u53F3\u4FA7\u4E09\u4EF6\u6C38\u4E0D\u6536\u7F29"\uFF0C\u4F46**\u6A21\u578B\u540D\u4F1A\u88AB\u9876\u957F** \u2014\u2014 \u76AE\u80A4\u628A\u6A21\u578B\u6309\u94AE\u653E\u5230
+           body \u4E0B\u7684 fixed \u5143\u7D20\u300C\u601D\u8003\u5F3A\u5EA6\u300D\u6309\u300C\u6A21\u578B\u53F3\u7F18 + 2px\u300D\u5B9A\u4F4D\uFF0C
+           \u6A21\u578B\u540D\u8D8A\u957F\uFF0C\u5F3A\u5EA6\u6309\u94AE\u5C31\u8D8A\u9760\u53F3\u3002\u5B9E\u6D4B\uFF08390px\uFF09\uFF1A\u6A21\u578B\u540D 46 \u5B57\u7B26\u65F6\u5F3A\u5EA6\u6309\u94AE
+           \u8DDD\u5361\u7247\u53F3\u7F18\u53EA\u5269 **1px**\uFF0C\u518D\u957F\u4E00\u70B9\u6574\u9897\u8DD1\u5230\u5361\u7247\u5916\uFF08\u7528\u6237\u624B\u673A\u5B9E\u6D4B\u590D\u73B0\uFF09\u3002
+           \u73B0\u5728\u6539\u4E3A\uFF1A**\u5141\u8BB8 trailing \u6536\u7F29**\uFF080 1 auto\uFF09\uFF0C\u628A"\u8BA9\u4F4D"\u4EA4\u7ED9\u6A21\u578B\u540D\u81EA\u5DF1
+           \uFF08\u4E0B\u9762\u7684\u9650\u5BBD + \u7701\u7565\u53F7\uFF09\uFF0C\u5F3A\u5EA6\uFF0849px\uFF09\u4E0E\u53D1\u9001\uFF0826px\uFF09\u4FDD\u6301\u539F\u5C3A\u5BF8\uFF0C
+           \u5B9E\u6D4B\u4E09\u4E2A\u5BBD\u5EA6\u4E0B\u53F3\u8FB9\u6052\u7559 16px \u4F59\u91CF\u3002
+           \u26A0\uFE0F \u672C\u6BB5\u6CE8\u91CA\u4E0D\u5F97\u51FA\u73B0\u53CD\u5F15\u53F7\uFF1A\u672C\u6587\u4EF6\u662F JS \u6A21\u677F\u5B57\u7B26\u4E32\uFF0C\u4F1A\u88AB\u622A\u65AD\uFF08\u5DF2\u8E29\u8FC7\u4E24\u6B21\uFF09\u3002 */
+        flex: 0 1 auto !important;
+        min-width: 0 !important;
+      }
+
+      /* \u53EF\u89C1\u7684\u6A21\u578B\u6309\u94AE\u662F**\u76AE\u80A4\u81EA\u7ED8**\u7684 .dsh-claude-model-btn\uFF08\u4E0D\u662F\u5BBF\u4E3B\u69FD\u4F4D\uFF09\uFF0C
+         \u5BBF\u4E3B\u69FD\u4F4D\u89C4\u5219\u5BF9\u5B83\u65E0\u6548\uFF08\u5B9E\u6D4B\u9650\u5BBD 180px \u6BEB\u65E0\u4F5C\u7528\uFF09\u3002\u6240\u4EE5\u8FD9\u91CC\u5FC5\u987B\u76F4\u63A5\u9650\u5BBD
+         \u76AE\u80A4\u7684\u6309\u94AE + \u5B83\u7684 label \u8D70\u7701\u7565\u53F7\uFF0C\u6A21\u578B\u540D\u624D\u80AF\u8BA9\u4F4D\u3002 */
+      .dsh-claude-model-btn {
+        max-width: 96px !important;
+        min-width: 0 !important;
+        overflow: hidden !important;
+      }
+
+      .dsh-claude-model-btn-label {
+        display: block !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        min-width: 0 !important;
       }
 
       div[class*="__F_MODEL__root"] {
         flex: 0 1 auto !important;
         min-width: 0 !important;
-        max-width: 180px !important;
+        max-width: 96px !important;
       }
 
       button[class*="__F_MODEL__trigger"] {

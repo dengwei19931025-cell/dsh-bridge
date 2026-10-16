@@ -855,15 +855,40 @@ export const MOBILE_STYLES_CSS = `
         align-items: center !important;
         justify-content: flex-end !important;
         gap: 6px !important;
-        /* ⚠️ 0 0 auto + min-width:max-content：绝不收缩，见本段顶部说明 */
-        flex: 0 0 auto !important;
-        min-width: max-content !important;
+        /* ⚠️ 长模型名回归修正（2026-10-16）：之前这里是 0 0 auto + min-width:max-content，
+           想着"右侧三件永不收缩"，但**模型名会被顶长** —— 皮肤把模型按钮放到
+           body 下的 fixed 元素「思考强度」按「模型右缘 + 2px」定位，
+           模型名越长，强度按钮就越靠右。实测（390px）：模型名 46 字符时强度按钮
+           距卡片右缘只剩 **1px**，再长一点整颗跑到卡片外（用户手机实测复现）。
+           现在改为：**允许 trailing 收缩**（0 1 auto），把"让位"交给模型名自己
+           （下面的限宽 + 省略号），强度（49px）与发送（26px）保持原尺寸，
+           实测三个宽度下右边恒留 16px 余量。
+           ⚠️ 本段注释不得出现反引号：本文件是 JS 模板字符串，会被截断（已踩过两次）。 */
+        flex: 0 1 auto !important;
+        min-width: 0 !important;
+      }
+
+      /* 可见的模型按钮是**皮肤自绘**的 .dsh-claude-model-btn（不是宿主槽位），
+         宿主槽位规则对它无效（实测限宽 180px 毫无作用）。所以这里必须直接限宽
+         皮肤的按钮 + 它的 label 走省略号，模型名才肯让位。 */
+      .dsh-claude-model-btn {
+        max-width: 96px !important;
+        min-width: 0 !important;
+        overflow: hidden !important;
+      }
+
+      .dsh-claude-model-btn-label {
+        display: block !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        min-width: 0 !important;
       }
 
       div[class*="__F_MODEL__root"] {
         flex: 0 1 auto !important;
         min-width: 0 !important;
-        max-width: 180px !important;
+        max-width: 96px !important;
       }
 
       button[class*="__F_MODEL__trigger"] {
