@@ -107,6 +107,11 @@ export function setupViewportClamp(deps = {}) {
 
   ensureClampCss(doc);
   let rafId = 0;
+  // ⚠️ 自锁标记：sweep 自己会写 style（CLAMP_VAR）与属性（CLAMP_ATTR），而下方的
+  // MutationObserver 正是监听 style/class 变化的。不自锁就是**无限自激**：
+  // sweep 写 style → 触发 observer → schedule → sweep → …
+  // 实测流式输出 5 秒里被触发了 329 次重扫 —— 用户看到的"一闪一闪"就是它。
+  let selfWrite = false;
 
   const clearEl = (el) => {
     el.style.removeProperty(CLAMP_VAR);
@@ -115,6 +120,15 @@ export function setupViewportClamp(deps = {}) {
 
   const sweep = () => {
     rafId = 0;
+    selfWrite = true;                 // 下面所有 DOM 写入都算"自己的"
+    try {
+      runSweep();
+    } finally {
+      selfWrite = false;
+    }
+  };
+
+  function runSweep() {
     if (win.innerWidth > MOBILE_MAX_WIDTH) {   // 只在移动端兜底，电脑端一个像素都不许动
       doc.querySelectorAll(`[${CLAMP_ATTR}]`).forEach(clearEl);
       return;
@@ -149,18 +163,22 @@ export function setupViewportClamp(deps = {}) {
   const schedule = () => { if (!rafId) rafId = raf(sweep); };
   win.addEventListener('resize', schedule, { passive: true });
   win.addEventListener('orientationchange', schedule, { passive: true });
-  win.addEventListener('scroll', schedule, { passive: true, capture: true });
+  // ⚠️ 刻意**不**监听 scroll：用户往上翻历史时那正是最不该被我们插一脚的时刻，
+  // 而固定定位控件的横坐标也不随纵向滚动变化（只有键盘导致视口高度变化时才会动，
+  // 那条已由 visualViewport.resize 覆盖）。少一个监听器 = 少一个抢滚动的机会。
   if (win.visualViewport) {
     win.visualViewport.addEventListener('resize', schedule);
-    win.visualViewport.addEventListener('scroll', schedule);
   }
 
   // 皮肤在布局后写 inline left；若只在 resize 时扫一次，可能量到还没写完的旧位置
-  // （实测 360px 那一档就是因为扫得太早而漏掉）。监听 style/class 变化重扫。
+  // （实测 360px 那一档就是因为扫得太早而漏掉）。
+  // ⚠️ 只观察 **body 的直接子元素**（subtree: false）：我们要管的浮动控件本来
+  // 就挂在 body 下。观察整棵子树等于把"每个 token 到达"都变成一次 sweep
+  // —— 实测流式输出 5 秒触发了 329 次重扫（用户看到的"一闪一闪"就是这个）。
   let mo = null;
   if (MO) {
-    mo = new MO(schedule);
-    mo.observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
+    mo = new MO(() => { if (!selfWrite) schedule(); });
+    mo.observe(doc.body, { childList: true, attributes: true, attributeFilter: ['style', 'class'] });
   }
   schedule();
 
@@ -169,10 +187,8 @@ export function setupViewportClamp(deps = {}) {
     if (mo) { mo.disconnect(); mo = null; }
     win.removeEventListener('resize', schedule);
     win.removeEventListener('orientationchange', schedule);
-    win.removeEventListener('scroll', schedule, true);
     if (win.visualViewport) {
       win.visualViewport.removeEventListener('resize', schedule);
-      win.visualViewport.removeEventListener('scroll', schedule);
     }
     doc.querySelectorAll(`[${CLAMP_ATTR}]`).forEach(clearEl);
     doc.getElementById(STYLE_ID)?.remove();

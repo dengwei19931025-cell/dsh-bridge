@@ -125,3 +125,28 @@ test('离界后必须清除补偿，不能留残留位移', () => {
   assert.match(source, /removeProperty\(CLAMP_VAR\)/, '回到视口内后必须清掉变量');
   assert.match(source, /removeAttribute\(CLAMP_ATTR\)/, '回到视口内后必须清掉标记');
 });
+
+// ── 2026-10-17 用户上报：「输出文字时一闪一闪、光标自动跳到底部」───────────────
+// 实测：兜底的 MutationObserver 监听 body **整棵子树**的 style/class，而 sweep 自己
+// 又要写 style —— 自激循环。流式输出 5 秒触发了 329 次重扫（修复前）。
+// 这三条守住"不再自激、不抢滚动"。
+
+test('不得自激：sweep 写样式期间必须上自锁，observer 看到自己的写入不再排队', () => {
+  assert.match(source, /let selfWrite\s*=\s*false/, '必须有自锁标记');
+  assert.match(source, /selfWrite\s*=\s*true/, 'sweep 进入时必须上锁');
+  // observer 回调必须检查自锁
+  assert.match(source, /new MO\(\(\)\s*=>\s*\{\s*if \(!selfWrite\)\s*schedule\(\)/,
+    'MutationObserver 回调必须跳过自锁期间的写入（否则无限自激）');
+});
+
+test('observer 只观察 body 直接子元素（不得 subtree:true —— 每个 token 都会变成一次重扫）', () => {
+  assert.match(source, /mo\.observe\(doc\.body,\s*\{\s*childList:\s*true,\s*attributes:\s*true/,
+    '观察配置必须是 body 直接子元素');
+  assert.doesNotMatch(source, /mo\.observe\([^)]*subtree:\s*true/, '不得观察整棵子树（实测引发 329 次重扫）');
+});
+
+test('不得监听 scroll：用户翻阅历史时那是最不该被插一脚的时刻', () => {
+  const listenerBlock = source.slice(source.indexOf('const schedule ='));
+  assert.doesNotMatch(listenerBlock, /addEventListener\('scroll'/,
+    '兜底不得监听 scroll —— 会与用户的翻阅动作抢滚动');
+});

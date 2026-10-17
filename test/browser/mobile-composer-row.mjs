@@ -515,6 +515,36 @@ say('电脑端：几何兜底完全不介入（不标记、不位移）',
   deskClamp.clampedCount === 0 && deskClamp.outOfView.length === 0,
   `标记数=${deskClamp.clampedCount} 越界=${deskClamp.outOfView.length}`);
 if (deskClamp.clampedCount > 0) fail++;
+// 供下一条断言回读
+let lastStreamWrites = 0;
+// ── 2026-10-17 用户上报：「输出文字时一闪一闪、光标自动跳到底部」───────────────
+// 实测根因：兜底的 MutationObserver 监听 body **整棵子树**的 style/class，
+// 而 sweep 自己又要写 style → 自激。流式输出 5 秒触发 329 次重扫。
+// 守卫口径：模拟 6 秒流式输出，兜底的写入次数必须接近 0（修复前是 329）。
+say('流式输出期间兜底保持安静（不反复重写样式 = 不闪）', await page.evaluate(async () => {
+  let writes = 0;
+  const orig = CSSStyleDeclaration.prototype.setProperty;
+  CSSStyleDeclaration.prototype.setProperty = function (...a) {
+    if (a[0] === '--dshbr-clamp-x') writes++;
+    return orig.apply(this, a);
+  };
+  const root = document.body.firstElementChild || document.body;
+  let n = 0;
+  const t = setInterval(() => {
+    const d = document.createElement('div');
+    d.textContent = 'token-' + Math.random().toString(36).slice(2, 7);
+    d.style.cssText = 'padding:4px 10px';
+    root.insertBefore(d, root.firstChild);
+    if (++n >= 40) clearInterval(t);
+  }, 120);
+  await new Promise((r) => setTimeout(r, 5200));
+  clearInterval(t);
+  CSSStyleDeclaration.prototype.setProperty = orig;
+  // 阈值放宽到 5：允许偶发重扫，但不允许"每个 token 一次"那种量级
+  return writes <= 5 ? { ok: true, writes } : { ok: false, writes };
+}).then((r) => { lastStreamWrites = r.writes; return r.ok; }),
+  `5 秒/41 个片段期间兜底写入 ${lastStreamWrites} 次（修复前为 329 次量级）`);
+
 console.log(`\n${SUITE_RESULT_PREFIX} label=手机端输入卡片底部工具行 pass=${pass} skip=0 fail=${fail}`);
 if (failList.length) console.log(`失败项：\n  - ${failList.join('\n  - ')}`);
 console.log(`==== 手机端输入卡片底部工具行：通过 ${pass}/${pass + fail} ====`);

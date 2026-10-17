@@ -2543,12 +2543,21 @@ function setupViewportClamp(deps = {}) {
   };
   ensureClampCss(doc);
   let rafId = 0;
+  let selfWrite = false;
   const clearEl = (el) => {
     el.style.removeProperty(CLAMP_VAR);
     el.removeAttribute(CLAMP_ATTR);
   };
   const sweep = () => {
     rafId = 0;
+    selfWrite = true;
+    try {
+      runSweep();
+    } finally {
+      selfWrite = false;
+    }
+  };
+  function runSweep() {
     if (win.innerWidth > MOBILE_MAX_WIDTH) {
       doc.querySelectorAll(`[${CLAMP_ATTR}]`).forEach(clearEl);
       return;
@@ -2574,21 +2583,22 @@ function setupViewportClamp(deps = {}) {
         el.removeAttribute(CLAMP_ATTR);
       }
     }
-  };
+  }
+  ;
   const schedule = () => {
     if (!rafId) rafId = raf(sweep);
   };
   win.addEventListener("resize", schedule, { passive: true });
   win.addEventListener("orientationchange", schedule, { passive: true });
-  win.addEventListener("scroll", schedule, { passive: true, capture: true });
   if (win.visualViewport) {
     win.visualViewport.addEventListener("resize", schedule);
-    win.visualViewport.addEventListener("scroll", schedule);
   }
   let mo = null;
   if (MO) {
-    mo = new MO(schedule);
-    mo.observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "class"] });
+    mo = new MO(() => {
+      if (!selfWrite) schedule();
+    });
+    mo.observe(doc.body, { childList: true, attributes: true, attributeFilter: ["style", "class"] });
   }
   schedule();
   return () => {
@@ -2602,10 +2612,8 @@ function setupViewportClamp(deps = {}) {
     }
     win.removeEventListener("resize", schedule);
     win.removeEventListener("orientationchange", schedule);
-    win.removeEventListener("scroll", schedule, true);
     if (win.visualViewport) {
       win.visualViewport.removeEventListener("resize", schedule);
-      win.visualViewport.removeEventListener("scroll", schedule);
     }
     doc.querySelectorAll(`[${CLAMP_ATTR}]`).forEach(clearEl);
     doc.getElementById(STYLE_ID)?.remove();
