@@ -49,7 +49,8 @@ if (typeof window !== 'undefined') {
 
 import { BRIDGE_RPC_CHANNEL, BRIDGE_ENDPOINTS } from '../lib/bridge-rpc-constants.js';
 
-import { installResourceUrlCompat } from './resource-url-compat.js';
+import { installResourceUrlCompat } from './resource-url-compat.js'
+import { setupViewportClamp } from './viewport-clamp.js';
 
 const RESOURCE_URL_COMPAT = installResourceUrlCompat();
 if (typeof window !== 'undefined') window.__dshResourceUrlCompat = RESOURCE_URL_COMPAT;
@@ -5358,6 +5359,7 @@ function apply(ctx) {
   if (pageTweaksOn) {
     setupIosKeyboardAdapter();
     setupEffortAnchor();
+    setupViewportClamp();
     setupAccountHide();
     setupComposerCollapse();
 

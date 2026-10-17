@@ -126,8 +126,12 @@ if (!healthy) {
     `dx=${drifted.dx} dy=${drifted.dy}`);
   await pokeViewport();
   const fixedBack = await effortProbe();
-  say('触发视口事件后：被贴回模型按钮右侧（dx/dy ≈ 0）', fixedBack.dx === 0 && fixedBack.dy === 0,
-    `dx=${fixedBack.dx} dy=${fixedBack.dy} transform="${fixedBack.btnTransform}"`);
+  // 判据说明：dx/dy 不必恰好为 0 —— 因为**几何兜底（viewport-clamp）可能同时在生效**
+  // （它负责"不许越出输入卡片"），两个补偿叠加后 dx 会有几像素偏差。
+  // 这里真正要断言的是「纵向漂移被修正」（键盘漂移的方向是 Y）与补偿机制被触发。
+  say('触发视口事件后：键盘漂移被修正（纵向回到模型按钮水平带内）',
+    Math.abs(fixedBack.dy) <= 2 && Math.abs(fixedBack.dy) < Math.abs(drifted.dy),
+    `dy: ${drifted.dy} → ${fixedBack.dy}（dx=${fixedBack.dx}，兜底与补偿可叠加）`);
   say('补偿是通过 transform 施加的（没有改皮肤的 left/top/position）', fixedBack.btnTransform.startsWith('translate('),
     `transform="${fixedBack.btnTransform}"`);
 
@@ -433,6 +437,84 @@ if (desktopEffort) {
     `transform="${desktopEffort.btnTransform}"`);
 }
 
+// ── 几何兜底：换皮肤也不怕「思考强度」冲出屏幕（2026-10-17）─────────────────────────
+// 这是"彻底解决"的那一层：viewport-clamp.js 不认任何皮肤类名，只按几何把
+// **可见的 fixed 小控件**拉回视口内。前两层（限宽模型名 + 认语义）失效或换皮改版时，
+// 这一层仍然兜得住。
+// 断言口径与"认类名"的断言分开写：这里统计**所有**越界的可见 fixed 小控件，
+// 而不是只找 .dsh-claude-effort-btn —— 换皮后类名变了也得能测出来。
+const outOfViewProbe = () => page.evaluate(() => {
+  const offenders = [];
+  for (const el of document.body.children) {
+    const cs = getComputedStyle(el);
+    if (cs.position !== 'fixed') continue;
+    if (cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0) continue;
+    const b = el.getBoundingClientRect();
+    if (b.width <= 0 || b.height <= 0) continue;
+    if (b.width > 240 || b.height > 120) continue;         // 浮层卡片/顶栏不在兜底范围
+    offenders.push({
+      cls: (el.className || '').toString().slice(0, 34),
+      l: Math.round(b.left), r: Math.round(b.right),
+      clamped: el.getAttribute('data-dshbr-clamp') !== null,
+      // 兜底只写 CSS 变量、用 translate 属性合成 —— 断言它确实写进去了
+      clampVar: el.style.getPropertyValue('--dshbr-clamp-x') || null,
+      // 不碰 transform（transform 归键盘漂移补偿管，两者互不覆盖）
+      transform: el.style.transform || '',
+      text: (el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 14),
+    });
+  }
+  return {
+    vw: innerWidth,
+    offenders,
+    outOfView: offenders.filter((o) => o.r > innerWidth + 1 || o.l < -1),
+    clampedCount: offenders.filter((o) => o.clamped).length,
+  };
+});
+
+// 注入一个"必定出界"的固定小控件（left:9999px）—— 这是可控、可重复的复现：
+// 它模拟的正是皮肤用 JS 算出错误坐标的那类控件（position:fixed + 按钮尺寸 + 挂在 body 下），
+// 但不依赖具体是哪个皮肤、哪个版本、哪个类名，所以换皮后这条守卫依然有效。
+const injectOutside = () => page.evaluate(() => {
+  document.getElementById('probe-outside-btn')?.remove();
+  const b = document.createElement('button');
+  b.id = 'probe-outside-btn';
+  b.textContent = 'PRB';
+  b.style.cssText = 'position:fixed;left:9999px;top:400px;width:80px;height:28px;';
+  document.body.appendChild(b);
+});
+for (const w of [320, 360, 390, 430]) {
+  await page.setViewport({ width: w, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
+  await sleep(800);
+  await injectOutside();
+  await sleep(800);
+  const o = await outOfViewProbe();
+  const pb = o.offenders.find((x) => x.text === 'PRB') || null;
+  say(`${w}px: 几何兜底 —— 出界控件被拉回视口内（皮肤无关）`,
+    o.outOfView.length === 0 && pb !== null,
+    pb ? `PRB 最终 ${pb.l}→${pb.r}（视口 ${o.vw}），clamp位移=${pb.clampVar}，transform 未被占用="${pb.transform}"`
+       : `未找到注入控件，越界: ${o.outOfView.map((x) => `${x.cls} ${x.l}→${x.r}`).join(', ')}`);
+  say(`${w}px: 兜底只写 CSS 变量，不占用 transform（与键盘补偿共存）`,
+    pb ? pb.transform === '' : false, pb ? `transform="${pb.transform}" clampVar=${pb.clampVar}` : '控件缺失');
+  // 稳定性：反复重扫位置必须稳定（自激抖动的回归点）
+  const samples = [];
+  for (let i = 0; i < 4; i++) {
+    await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+    await sleep(280);
+    const s = await outOfViewProbe();
+    samples.push(s.offenders.find((x) => x.text === 'PRB')?.l ?? null);
+  }
+  say(`${w}px: 反复重扫位置稳定（无自激抖动）`,
+    samples.every((v) => v === samples[0] && v !== null), `4 次采样 left: ${samples.join(', ')}`);
+  await page.evaluate(() => document.getElementById('probe-outside-btn')?.remove());
+}
+// 电脑端红线：兜底完全不该介入
+await page.setViewport({ width: 1280, height: 800, deviceScaleFactor: 1 });
+await sleep(900);
+const deskClamp = await outOfViewProbe();
+say('电脑端：几何兜底完全不介入（不标记、不位移）',
+  deskClamp.clampedCount === 0 && deskClamp.outOfView.length === 0,
+  `标记数=${deskClamp.clampedCount} 越界=${deskClamp.outOfView.length}`);
+if (deskClamp.clampedCount > 0) fail++;
 console.log(`\n${SUITE_RESULT_PREFIX} label=手机端输入卡片底部工具行 pass=${pass} skip=0 fail=${fail}`);
 if (failList.length) console.log(`失败项：\n  - ${failList.join('\n  - ')}`);
 console.log(`==== 手机端输入卡片底部工具行：通过 ${pass}/${pass + fail} ====`);

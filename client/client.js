@@ -2491,6 +2491,127 @@ function installResourceUrlCompat(win = typeof window === "undefined" ? void 0 :
   return "installed";
 }
 
+// client/viewport-clamp.js
+var MAX_W = 240;
+var MAX_H = 120;
+var PAD = 6;
+var MAX_NODES = 60;
+var MOBILE_MAX_WIDTH = 767;
+var CLAMP_VAR = "--dshbr-clamp-x";
+var CLAMP_ATTR = "data-dshbr-clamp";
+var STYLE_ID = "dsh-bridge-clamp-style";
+function isVisible({ display, visibility, opacity, rect }) {
+  if (display === "none" || visibility === "hidden" || Number(opacity) === 0) return false;
+  return rect.width > 0 && rect.height > 0;
+}
+function computeClampOffset(style, rect, boundary) {
+  if (style.position !== "fixed") return 0;
+  if (!isVisible({ ...style, rect })) return 0;
+  if (rect.width > MAX_W || rect.height > MAX_H) return 0;
+  const { left: bl, right: br } = boundary;
+  let dx = 0;
+  if (rect.right > br - PAD) dx = br - PAD - rect.right;
+  if (rect.left < bl + PAD) dx = Math.max(dx, bl + PAD - rect.left);
+  return Math.round(dx);
+}
+function clampOffsetFor(el, viewportWidth, cardRect) {
+  const cs = getComputedStyle(el);
+  const b = el.getBoundingClientRect();
+  let boundary = { left: 0, right: viewportWidth };
+  if (cardRect && cardRect.height > 0 && b.top < cardRect.bottom && b.bottom > cardRect.top) {
+    boundary = { left: cardRect.left, right: cardRect.right };
+  }
+  return computeClampOffset(
+    { position: cs.position, display: cs.display, visibility: cs.visibility, opacity: cs.opacity },
+    { left: b.left, right: b.right, width: b.width, height: b.height },
+    boundary
+  );
+}
+function ensureClampCss(doc) {
+  if (doc.getElementById(STYLE_ID)) return;
+  const style = doc.createElement("style");
+  style.id = STYLE_ID;
+  style.textContent = `[${CLAMP_ATTR}]{translate:var(${CLAMP_VAR},0px) 0 !important}`;
+  (doc.head || doc.documentElement).appendChild(style);
+}
+function setupViewportClamp(deps = {}) {
+  const doc = deps.document || (typeof document !== "undefined" ? document : null);
+  const win = deps.window || (typeof window !== "undefined" ? window : null);
+  const raf = deps.requestAnimationFrame || (typeof requestAnimationFrame !== "undefined" ? requestAnimationFrame : null);
+  const MO = deps.MutationObserver || (typeof MutationObserver !== "undefined" ? MutationObserver : null);
+  if (!doc || !win || !raf) return () => {
+  };
+  ensureClampCss(doc);
+  let rafId = 0;
+  const clearEl = (el) => {
+    el.style.removeProperty(CLAMP_VAR);
+    el.removeAttribute(CLAMP_ATTR);
+  };
+  const sweep = () => {
+    rafId = 0;
+    if (win.innerWidth > MOBILE_MAX_WIDTH) {
+      doc.querySelectorAll(`[${CLAMP_ATTR}]`).forEach(clearEl);
+      return;
+    }
+    const vw = win.innerWidth;
+    const cardEl = doc.querySelector("[data-composer-card]");
+    const cardRect = cardEl ? cardEl.getBoundingClientRect() : null;
+    let scanned = 0;
+    for (const el of doc.body.children) {
+      if (scanned++ > MAX_NODES) break;
+      const had = el.getAttribute(CLAMP_ATTR) !== null;
+      if (had) el.style.removeProperty(CLAMP_VAR);
+      let dx;
+      try {
+        dx = clampOffsetFor(el, vw, cardRect);
+      } catch {
+        continue;
+      }
+      if (dx !== 0) {
+        el.style.setProperty(CLAMP_VAR, `${dx}px`);
+        el.setAttribute(CLAMP_ATTR, "1");
+      } else if (had) {
+        el.removeAttribute(CLAMP_ATTR);
+      }
+    }
+  };
+  const schedule = () => {
+    if (!rafId) rafId = raf(sweep);
+  };
+  win.addEventListener("resize", schedule, { passive: true });
+  win.addEventListener("orientationchange", schedule, { passive: true });
+  win.addEventListener("scroll", schedule, { passive: true, capture: true });
+  if (win.visualViewport) {
+    win.visualViewport.addEventListener("resize", schedule);
+    win.visualViewport.addEventListener("scroll", schedule);
+  }
+  let mo = null;
+  if (MO) {
+    mo = new MO(schedule);
+    mo.observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "class"] });
+  }
+  schedule();
+  return () => {
+    if (rafId) {
+      cancelAnimationFrame(rafId);
+      rafId = 0;
+    }
+    if (mo) {
+      mo.disconnect();
+      mo = null;
+    }
+    win.removeEventListener("resize", schedule);
+    win.removeEventListener("orientationchange", schedule);
+    win.removeEventListener("scroll", schedule, true);
+    if (win.visualViewport) {
+      win.visualViewport.removeEventListener("resize", schedule);
+      win.visualViewport.removeEventListener("scroll", schedule);
+    }
+    doc.querySelectorAll(`[${CLAMP_ATTR}]`).forEach(clearEl);
+    doc.getElementById(STYLE_ID)?.remove();
+  };
+}
+
 // client/index.js
 if (typeof window !== "undefined") {
   if (!window.crypto) {
@@ -2513,7 +2634,7 @@ if (typeof window !== "undefined") {
 }
 var RESOURCE_URL_COMPAT = installResourceUrlCompat();
 if (typeof window !== "undefined") window.__dshResourceUrlCompat = RESOURCE_URL_COMPAT;
-var MOBILE_MAX_WIDTH = 767;
+var MOBILE_MAX_WIDTH2 = 767;
 var SETTINGS_DRILLDOWN_MAX_WIDTH = 480;
 var DRILLDOWN_GATE_ATTR = "data-dshbr-drilldown";
 var DRILLDOWN_GATE_READY = "ready";
@@ -6738,7 +6859,7 @@ function setupMobileExperience(rpcCall, ctx) {
       if (document.body.classList.contains("dsh-drawer-open")) {
         document.body.classList.remove("dsh-drawer-open");
       }
-      if (typeof window !== "undefined" && window.innerWidth <= MOBILE_MAX_WIDTH) {
+      if (typeof window !== "undefined" && window.innerWidth <= MOBILE_MAX_WIDTH2) {
         document.body.classList.remove("dsh-workbench-open");
         const openPanels = document.querySelectorAll(workbenchPanelSelector({ openOnly: true }));
         openPanels.forEach((p) => p.classList.add("dsh-bridge-panelHidden"));
@@ -6747,7 +6868,7 @@ function setupMobileExperience(rpcCall, ctx) {
   }
   const ensurePanelCloseButton = () => {
     if (typeof window === "undefined") return;
-    if (window.innerWidth > MOBILE_MAX_WIDTH) {
+    if (window.innerWidth > MOBILE_MAX_WIDTH2) {
       document.querySelectorAll(".dsh-mobile-panel-close-btn").forEach((btn) => btn.remove());
       return;
     }
@@ -6773,14 +6894,14 @@ function setupMobileExperience(rpcCall, ctx) {
   panelObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
   window.addEventListener("resize", ensurePanelCloseButton);
   document.addEventListener("click", (e) => {
-    if (typeof window === "undefined" || window.innerWidth > MOBILE_MAX_WIDTH) return;
+    if (typeof window === "undefined" || window.innerWidth > MOBILE_MAX_WIDTH2) return;
     const trigger = e.target.closest('button[aria-label*="\u9762\u677F"], button[aria-label*="\u5DE5\u4F5C\u533A"], button[aria-label*="workspace"], button[aria-label*="Workspace"], div[class*="toggleCluster"] button, button[class*="subagent"], div[class*="headerActions"] button, div[class*="titleRow"] button');
     if (trigger && !trigger.classList.contains("dsh-mobile-panel-close-btn") && !trigger.classList.contains("dsh-header-menu-btn") && !trigger.classList.contains("dsh-header-new-btn")) {
       document.body.classList.add("dsh-workbench-open");
     }
   }, true);
   document.addEventListener("click", (e) => {
-    if (typeof window === "undefined" || window.innerWidth > MOBILE_MAX_WIDTH) return;
+    if (typeof window === "undefined" || window.innerWidth > MOBILE_MAX_WIDTH2) return;
     const toggle = e.target.closest('button[aria-label*="\u6536\u8D77\u4FA7\u8FB9\u680F"], button[title*="\u6536\u8D77\u4FA7\u8FB9\u680F"], button[aria-label*="Collapse sidebar"], button[title*="Collapse sidebar"]');
     if (toggle) {
       document.body.classList.remove("dsh-drawer-open");
@@ -7632,7 +7753,7 @@ function setupEffortAnchor() {
   let raf = 0;
   const sync = () => {
     raf = 0;
-    if (window.innerWidth > MOBILE_MAX_WIDTH) return;
+    if (window.innerWidth > MOBILE_MAX_WIDTH2) return;
     const btn = document.querySelector(".dsh-claude-effort-btn");
     const model = document.querySelector(".dsh-claude-model-btn");
     if (!btn || !model) return;
@@ -7671,7 +7792,7 @@ function setupEffortAnchor() {
 }
 function setupComposerCollapse() {
   if (typeof window === "undefined" || typeof document === "undefined" || typeof MutationObserver === "undefined") return;
-  if (window.innerWidth > MOBILE_MAX_WIDTH) return;
+  if (window.innerWidth > MOBILE_MAX_WIDTH2) return;
   if (shouldYieldComposerCollapse()) return;
   const LS_KEY = "dsh-composer-fold";
   let bar = null;
@@ -7832,6 +7953,7 @@ function apply(ctx) {
   if (pageTweaksOn) {
     setupIosKeyboardAdapter();
     setupEffortAnchor();
+    setupViewportClamp();
     setupAccountHide();
     setupComposerCollapse();
     setupMobileExperience(rpcCall, ctx);
