@@ -286,6 +286,23 @@ export const FAMILY_SLOTS = {
     known: ['QsffPG'],
     anchors: [{ local: 'trigger', find: aria(/后台任务|background jobs? running/i) }],
   },
+  // 子代理触发器（@deepseek-ai/dsh-client-ui-subagent）：手机端整体隐藏，见 mobile-styles.js。
+  //
+  // ⚠️ 这是 2026-10-17 用户截图后才补上的：此前只登记了 JOBS（后台任务），
+  // 而用户看到的「N 个子智能体」是**另一个宿主包**渲染的 —— 实测
+  //   button.ZKlsPq_trigger aria-label="1 个子智能体"（90×28）
+  //   父 div.ZKlsPq_root → wSkVaW_headerActions → wSkVaW_titleCluster
+  // 两个包挨在同一条头部工具带里（用户截图里「1 个子智能体」与「1 个后台任务运行中」并存），
+  // 但 aria 与类名完全不同，JOBS 的规则打不到它 —— 于是它漏了出来。
+  // 教训（与 viewport-clamp 同源）：**别靠猜"是哪个包"，按语义锚点逐个登记**。
+  // aria-label 取自该包 i18n：zh「{count} 个子智能体」/ en「{count} subagent(s)」。
+  // optional：没有子代理时压根不渲染（实测缺席是常态）。
+  SUBAGENT: {
+    optional: true,
+    locals: ['trigger'],
+    known: ['ZKlsPq'],
+    anchors: [{ local: 'trigger', find: aria(/子智能体|子代理|subagents?/i) }],
+  },
   // 「用 {app} 打开」按钮（@deepseek-ai/dsh-client-ui-open-in-app）：它是在**电脑本机**
   // 唤起文件资源管理器/访达，手机上点了没有任何作用 → 手机端**整组**隐藏。
   // 注意不能只藏按钮本体：这一组是 menuAnchor 包着 [按钮 + split 分隔线]，

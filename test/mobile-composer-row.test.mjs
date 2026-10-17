@@ -56,6 +56,32 @@ test('槽位表：COMPOSER 必须收录 trailing / tools / modes（本修正直�
   }
 });
 
+test('槽位表：JOBS 与 SUBAGENT 是两个宿主包，必须分别登记（2026-10-17 用户截图）', () => {
+  // 此前只登记了 JOBS（后台任务），用户截图里漏出来的是**子代理**按钮 ——
+  // 实测 button.ZKlsPq_trigger aria-label="1 个子智能体"，与 JOBS 的 QsffPG 完全不同。
+  // 两者挨在同一条头部工具带里，靠猜"是哪个包"会漏（已经漏过一次）。
+  assert.ok(FAMILY_SLOTS.JOBS, '必须登记 JOBS（后台任务）');
+  assert.ok(FAMILY_SLOTS.SUBAGENT, '必须登记 SUBAGENT（子代理）—— 后台任务 ≠ 子代理');
+  assert.notEqual(FAMILY_SLOTS.JOBS.known[0], FAMILY_SLOTS.SUBAGENT.known[0],
+    '两个槽位的类名前缀不能相同（相同说明错把两个包当成了一个）');
+  assert.ok(FAMILY_SLOTS.SUBAGENT.optional, '子代理缺席是常态（没有子代理时不渲染）');
+});
+
+test('手机端必须隐藏「子智能体」与「后台任务」两个头部按钮', () => {
+  // ⚠️ 断言对象是 **源码模板**（MOBILE_STYLES_CSS），不是渲染后的 CSS：
+  // 槽位占位符 __F_XXX__ 要到运行时才替换成真实哈希（渲染后会变成 ZKlsPq_trigger 等）。
+  for (const slot of ['SUBAGENT', 'JOBS']) {
+    const re = new RegExp(`button\\[class\\*="__F_${slot}__trigger"\\][^{]*\\{[^}]*display:\\s*none\\s*!important`);
+    assert.match(MOBILE_STYLES_CSS, re, `必须有一条 button[class*="__F_${slot}__trigger"] { display:none !important }`);
+  }
+  // 子代理按钮的外层包裹也要一起藏，否则头部留一段空隙
+  assert.match(MOBILE_STYLES_CSS, /\[class\*="__F_SUBAGENT__root"\][^{]*\{[^}]*display:\s*none\s*!important/,
+    '必须连 __F_SUBAGENT__root 一起藏（外层包裹，否则留空隙）');
+  // 反向守卫：选择器里不得硬编码子代理的类名哈希（哈希随宿主版本变）。
+  // 注意只查**选择器部分**（剔除注释）—— 注释里记录实测类名是有意为之的文档。
+  assert.doesNotMatch(cssNoComment, /ZKlsPq/, '选择器里不得硬编码子代理哈希，必须走槽位');
+});
+
 test('长模型名不得把「思考强度」顶出卡片（2026-10-16 回归修正）', () => {
   // 真因：皮肤把「思考强度」做成 body 下的 position:fixed 元素，按「模型按钮右缘 + 2px」
   // 定位。所以"模型名越长 → 强度按钮越靠右"。旧写法 trailing{0 0 auto; min-width:max-content}

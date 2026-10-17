@@ -668,6 +668,16 @@ var MOBILE_STYLES_CSS = `
         display: none !important;
       }
 
+      /* \u2462 \u5B50\u4EE3\u7406\u89E6\u53D1\u5668\uFF08@deepseek-ai/dsh-client-ui-subagent\uFF0C2026-10-17 \u7528\u6237\u622A\u56FE\u8865\u4E0A\uFF09\u3002
+         aria-label \u5F62\u5982\u300C1 \u4E2A\u5B50\u667A\u80FD\u4F53\u300D/\u300CN subagents\u300D\uFF0C\u5B9E\u6D4B button.ZKlsPq_trigger\uFF0890\xD728\uFF09\uFF0C
+         \u4E0E \u2460 \u7684\u540E\u53F0\u4EFB\u52A1\u6309\u94AE**\u6328\u5728\u540C\u4E00\u6761\u5934\u90E8\u5DE5\u5177\u5E26**\u91CC\uFF0C\u4F46\u5C5E**\u53E6\u4E00\u4E2A\u5BBF\u4E3B\u5305**\uFF1A
+         \u7C7B\u540D\u4E0E aria \u90FD\u548C JOBS \u5B8C\u5168\u4E0D\u540C\uFF0C\u6240\u4EE5\u4E0A\u9762\u90A3\u6761\u89C4\u5219\u6253\u4E0D\u5230\u5B83\uFF08\u7528\u6237\u5B9E\u6D4B\u6F0F\u4E86\u51FA\u6765\uFF09\u3002
+         \u8FDE __F_SUBAGENT__root \u4E00\u8D77\u85CF\uFF1A\u5B83\u662F trigger \u7684\u5916\u5C42\u5305\u88F9\uFF0C\u53EA\u85CF\u6309\u94AE\u4F1A\u5728\u5934\u90E8\u7559\u7A7A\u9699\u3002 */
+      button[class*="__F_SUBAGENT__trigger"],
+      div[class*="__F_SUBAGENT__root"] {
+        display: none !important;
+      }
+
       /* \u5B50\u4EE3\u7406\u5C55\u5F00\u83DC\u5355\u5728\u79FB\u52A8\u7AEF\u53F3\u5BF9\u9F50\u4E0E\u5BBD\u5EA6\u81EA\u9002\u5E94\u3002
          \u6CE8\uFF1Amenu \u8FD9\u4E2A\u672C\u5730\u540D\u5728 0.1.x(cubgiG) \u4E0E 0.2.0(_oGoKq) \u7684 Agent \u9884\u8BBE\u65CF\u91CC\u90FD\u4E0D\u5B58\u5728
          \uFF08\u5B9E\u6D4B\uFF09\uFF0C\u672C\u89C4\u5219\u5728\u8FD9\u4E24\u4E2A\u5BBF\u4E3B\u4E0A\u4E0D\u547D\u4E2D\uFF1B\u4FDD\u7559\u662F\u4E3A\u4E86\u4E0D\u6539\u52A8\u65E7\u884C\u4E3A\uFF0C\u7B49\u91C7\u5230\u771F\u5B9E\u951A\u70B9\u518D\u6536\u655B\u3002 */
@@ -1778,6 +1788,23 @@ var FAMILY_SLOTS = {
     locals: ["trigger"],
     known: ["QsffPG"],
     anchors: [{ local: "trigger", find: aria(/后台任务|background jobs? running/i) }]
+  },
+  // 子代理触发器（@deepseek-ai/dsh-client-ui-subagent）：手机端整体隐藏，见 mobile-styles.js。
+  //
+  // ⚠️ 这是 2026-10-17 用户截图后才补上的：此前只登记了 JOBS（后台任务），
+  // 而用户看到的「N 个子智能体」是**另一个宿主包**渲染的 —— 实测
+  //   button.ZKlsPq_trigger aria-label="1 个子智能体"（90×28）
+  //   父 div.ZKlsPq_root → wSkVaW_headerActions → wSkVaW_titleCluster
+  // 两个包挨在同一条头部工具带里（用户截图里「1 个子智能体」与「1 个后台任务运行中」并存），
+  // 但 aria 与类名完全不同，JOBS 的规则打不到它 —— 于是它漏了出来。
+  // 教训（与 viewport-clamp 同源）：**别靠猜"是哪个包"，按语义锚点逐个登记**。
+  // aria-label 取自该包 i18n：zh「{count} 个子智能体」/ en「{count} subagent(s)」。
+  // optional：没有子代理时压根不渲染（实测缺席是常态）。
+  SUBAGENT: {
+    optional: true,
+    locals: ["trigger"],
+    known: ["ZKlsPq"],
+    anchors: [{ local: "trigger", find: aria(/子智能体|子代理|subagents?/i) }]
   },
   // 「用 {app} 打开」按钮（@deepseek-ai/dsh-client-ui-open-in-app）：它是在**电脑本机**
   // 唤起文件资源管理器/访达，手机上点了没有任何作用 → 手机端**整组**隐藏。

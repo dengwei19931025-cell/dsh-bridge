@@ -643,6 +643,16 @@ export const MOBILE_STYLES_CSS = `
         display: none !important;
       }
 
+      /* ③ 子代理触发器（@deepseek-ai/dsh-client-ui-subagent，2026-10-17 用户截图补上）。
+         aria-label 形如「1 个子智能体」/「N subagents」，实测 button.ZKlsPq_trigger（90×28），
+         与 ① 的后台任务按钮**挨在同一条头部工具带**里，但属**另一个宿主包**：
+         类名与 aria 都和 JOBS 完全不同，所以上面那条规则打不到它（用户实测漏了出来）。
+         连 __F_SUBAGENT__root 一起藏：它是 trigger 的外层包裹，只藏按钮会在头部留空隙。 */
+      button[class*="__F_SUBAGENT__trigger"],
+      div[class*="__F_SUBAGENT__root"] {
+        display: none !important;
+      }
+
       /* 子代理展开菜单在移动端右对齐与宽度自适应。
          注：menu 这个本地名在 0.1.x(cubgiG) 与 0.2.0(_oGoKq) 的 Agent 预设族里都不存在
          （实测），本规则在这两个宿主上不命中；保留是为了不改动旧行为，等采到真实锚点再收敛。 */
