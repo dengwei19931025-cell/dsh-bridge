@@ -308,41 +308,56 @@ test('「积分」读数必须收窄：限宽 + 可收缩 + 省略号', () => {
 //   行内样式形如 left:289px; top:771px —— 由皮肤 JS 从模型按钮的 getBoundingClientRect() 算出，
 //   并给模型按钮设 margin-right 来"占位"。键盘弹起时 iOS 的 fixed 参照系与 rect 坐标系不同步，
 //   皮肤算出的坐标失效 → 实测按钮浮到消息区中间（用户 iOS 截图）。
-test('存在 setupEffortAnchor，且已在插件入口调用', () => {
-  assert.match(clientIndex, /function setupEffortAnchor\(\)/, '必须实现 setupEffortAnchor');
-  assert.match(clientIndex, /setupEffortAnchor\(\);/, '必须在插件入口调用它（与 setupIosKeyboardAdapter 同处）');
+//
+// ⚠️ 2026-10-19：独立的 setupEffortAnchor 已**删除并并入** setupViewportClamp。
+//    两层各自测量、各自写位移，互相看不见对方 —— 拉回层按尚未锚定的旧坐标判定，
+//    两者合起来是错的，这就是"偶发挤出边框"。现在由唯一观测者统一处理，
+//    锚定目标由调用方以 EFFORT_ANCHOR 注入。本组只守"契约"，行为细节见
+//    test/viewport-clamp.test.mjs 的单一观测者一节。
+test('锚定目标由调用方注入：入口必须把 EFFORT_ANCHOR 传给唯一观测者', () => {
+  assert.match(clientIndex, /const EFFORT_ANCHOR = \{/, '必须保留锚定配置常量');
+  assert.match(clientIndex, /btnSelector:\s*'\.dsh-claude-effort-btn'/, '锚的主体是皮肤自绘的强度按钮');
+  assert.match(clientIndex, /targetSelector:\s*'\.dsh-claude-model-btn'/, '锚定目标是模型按钮右缘');
+  assert.match(clientIndex, /popoverSelector:\s*'\.dsh-claude-effort-popover'/, '浮层承受同一坐标系误差，必须一起补');
+  assert.match(clientIndex, /setupViewportClamp\(\{ anchor: EFFORT_ANCHOR \}\)/,
+    '必须由唯一观测者统一处理（不得再单独调用已删除的 setupEffortAnchor）');
+  assert.doesNotMatch(clientIndex, /setupEffortAnchor\(\);/, '不得再调用第二个观测者');
   assert.ok(rawBundle.includes('dsh-claude-effort-btn'), '产物里必须带上该补偿，请重新构建');
 });
 
-test('补偿只加 transform，绝不改皮肤的定位属性（否则就是"改皮肤"了）', () => {
-  const body = clientIndex.match(/function setupEffortAnchor\(\)[\s\S]*?\n\}\n/);
-  assert.ok(body, '必须能定位到 setupEffortAnchor 函数体');
-  assert.match(body[0], /btn\.style\.transform = /, '只允许设置 transform');
-  for (const forbidden of ['btn.style.left', 'btn.style.top', 'btn.style.position', 'btn.style.marginRight',
-    'model.style.marginRight', 'removeChild', 'appendChild', 'insertBefore']) {
-    assert.ok(!body[0].includes(forbidden),
+test('补偿只加 transform / CSS 变量，绝不改皮肤的定位属性（否则就是"改皮肤"了）', () => {
+  // clamp 层（唯一观测者）负责实际写入
+  const clampSrc = read('client/viewport-clamp.js');
+  assert.match(clampSrc, /el\.style\.transform = transform/, '锚定仍只写 transform');
+  assert.match(clampSrc, /style\.setProperty\(CLAMP_VAR/, '越界拉回只写 CSS 变量');
+  for (const forbidden of ['.style.left', '.style.top', '.style.position', '.style.marginRight',
+    'removeChild', 'appendChild', 'insertBefore']) {
+    assert.ok(!clampSrc.includes(`${forbidden} =`) && !clampSrc.includes(`${forbidden}=`),
       `不得动 ${forbidden}：皮肤自己负责 left/top/占位 margin，我们只做视觉补偿`);
   }
+  // 入口侧的锚定配置也不得夹带几何改写
+  const anchorBlock = clientIndex.match(/const EFFORT_ANCHOR = \{[\s\S]*?\n\};/)[0];
+  assert.doesNotMatch(anchorBlock, /style/, '锚定配置只是选择器，不得直接改样式');
 });
 
-test('补偿的安全阀：非 fixed 实现不插手、坐标系健康时不加 transform、清掉旧补偿再测量', () => {
-  const body = clientIndex.match(/function setupEffortAnchor\(\)[\s\S]*?\n\}\n/)[0];
-  assert.match(body, /getComputedStyle\(btn\)\.position !== 'fixed'/,
-    '必须探测皮肤是否仍是 fixed 实现：换了实现就不插手');
-  assert.match(body, /if \(!dx && !dy\) return;/, '坐标系没漂移时必须直接返回（健康路径零影响）');
-  assert.match(body, /if \(btn\.style\.transform\) btn\.style\.transform = '';/,
-    '测量前必须清掉上次补偿，否则会自我累积（drift 越补越大）');
-  assert.match(body, /if \(pop && pop\.style\.transform\) pop\.style\.transform = '';/,
-    '浮层的旧补偿也要清：漂移消失后残留 transform 会让浮层错位');
-  assert.ok(body.includes("window.innerWidth > MOBILE_MAX_WIDTH"), '必须只在手机端生效');
+test('安全阀：坐标健康时不加位移、清掉旧补偿再测量（防自我累积）', () => {
+  const clampSrc = read('client/viewport-clamp.js');
+  assert.match(clampSrc, /computeAnchorOffset/, '锚定必须走纯计算（坐标系没漂移时自然返回 0）');
+  // 统一清除阶段：把自己上次写的所有位移都撤掉，才量得到皮肤的真实位置
+  assert.match(clampSrc, /\/\/ ① 统一清除/, '必须有统一清除阶段');
+  assert.match(clampSrc, /clearEl\(el\)/, '清除时必须还原 transform 与 CSS 变量');
+  assert.match(clampSrc, /innerWidth\s*>\s*MOBILE_MAX_WIDTH/, '必须只在手机端生效');
 });
 
-test('补偿的触发时机覆盖 iOS 键盘：visualViewport 的 resize/scroll + 焦点变化', () => {
-  const body = clientIndex.match(/function setupEffortAnchor\(\)[\s\S]*?\n\}\n/)[0];
-  assert.match(body, /visualViewport\.addEventListener\('resize'/, '必须监听 visualViewport resize（键盘弹起/收起）');
-  assert.match(body, /visualViewport\.addEventListener\('scroll'/, '必须监听 visualViewport scroll（iOS 会二次滚动）');
-  assert.match(body, /addEventListener\('focusin', schedule, true\)/, '必须监听 focusin');
-  assert.match(body, /addEventListener\('focusout', schedule, true\)/, '必须监听 focusout');
-  assert.match(body, /addEventListener\('scroll', schedule, \{ passive: true, capture: true \}\)/,
-    '滚动必须用捕获：输入区在宿主的滚动容器里，事件不冒泡到 window');
+test('触发时机覆盖 iOS 键盘：visualViewport 的 resize/scroll', () => {
+  const clampSrc = read('client/viewport-clamp.js');
+  assert.match(clampSrc, /visualViewport\.addEventListener\('resize'/, '必须监听 visualViewport resize（键盘弹起/收起）');
+  assert.match(clampSrc, /visualViewport\.addEventListener\('scroll'/, '必须监听 visualViewport scroll（iOS 会二次滚动）');
+  // 不得监听 window scroll：用户翻阅历史时最不该被插一脚，
+  // 且固定控件的横坐标不随纵向滚动变化（visualViewport 的 scroll 是键盘信号，要保留）
+  const listenerBlock = clampSrc.slice(clampSrc.indexOf('const schedule ='));
+  assert.doesNotMatch(listenerBlock, /win\.addEventListener\('scroll'/,
+    '不得监听 window scroll —— 会与用户的翻阅动作抢滚动');
+  assert.doesNotMatch(listenerBlock, /window\.addEventListener\('scroll'/,
+    '不得监听 window scroll（含全局写法）');
 });

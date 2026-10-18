@@ -2627,18 +2627,19 @@ function computeClampOffset(style, rect, boundary) {
   if (rect.left < bl + PAD) dx = Math.max(dx, bl + PAD - rect.left);
   return Math.round(dx);
 }
-function clampOffsetFor(el, viewportWidth, cardRect) {
-  const cs = getComputedStyle(el);
-  const b = el.getBoundingClientRect();
-  let boundary = { left: 0, right: viewportWidth };
-  if (cardRect && cardRect.height > 0 && b.top < cardRect.bottom && b.bottom > cardRect.top) {
-    boundary = { left: cardRect.left, right: cardRect.right };
+function computeAnchorOffset(btnRect, targetRect, gap = 2) {
+  if (!btnRect?.width || !btnRect?.height) return { dx: 0, dy: 0 };
+  if (!targetRect?.width || !targetRect?.height) return { dx: 0, dy: 0 };
+  return {
+    dx: Math.round(targetRect.right + gap - btnRect.left),
+    dy: Math.round(targetRect.top + (targetRect.height - btnRect.height) / 2 - btnRect.top)
+  };
+}
+function boundaryFor(rect, viewportWidth, cardRect) {
+  if (cardRect && cardRect.height > 0 && rect.top < cardRect.bottom && rect.bottom > cardRect.top) {
+    return { left: cardRect.left, right: cardRect.right };
   }
-  return computeClampOffset(
-    { position: cs.position, display: cs.display, visibility: cs.visibility, opacity: cs.opacity },
-    { left: b.left, right: b.right, width: b.width, height: b.height },
-    boundary
-  );
+  return { left: 0, right: viewportWidth };
 }
 function ensureClampCss(doc) {
   if (doc.getElementById(STYLE_ID)) return;
@@ -2647,6 +2648,9 @@ function ensureClampCss(doc) {
   style.textContent = `[${CLAMP_ATTR}]{translate:var(${CLAMP_VAR},0px) 0 !important}`;
   (doc.head || doc.documentElement).appendChild(style);
 }
+function fingerprint(el) {
+  return `${el.getAttribute("style") || ""}\0${el.getAttribute(CLAMP_ATTR) || ""}`;
+}
 function setupViewportClamp(deps = {}) {
   const doc = deps.document || (typeof document !== "undefined" ? document : null);
   const win = deps.window || (typeof window !== "undefined" ? window : null);
@@ -2654,50 +2658,125 @@ function setupViewportClamp(deps = {}) {
   const MO = deps.MutationObserver || (typeof MutationObserver !== "undefined" ? MutationObserver : null);
   if (!doc || !win || !raf) return () => {
   };
+  const anchorCfg = deps.anchor || null;
   ensureClampCss(doc);
   let rafId = 0;
-  let selfWrite = false;
+  const managed = /* @__PURE__ */ new Map();
+  const selfFingerprints = /* @__PURE__ */ new Map();
   const clearEl = (el) => {
+    const rec = managed.get(el);
+    if (rec) el.style.transform = rec.prevTransform;
     el.style.removeProperty(CLAMP_VAR);
     el.removeAttribute(CLAMP_ATTR);
+    managed.delete(el);
+  };
+  const clearAll = () => {
+    for (const el of [...managed.keys()]) clearEl(el);
+    for (const el of doc.querySelectorAll(`[${CLAMP_ATTR}]`)) {
+      el.style.removeProperty(CLAMP_VAR);
+      el.removeAttribute(CLAMP_ATTR);
+    }
   };
   const sweep = () => {
     rafId = 0;
-    selfWrite = true;
     try {
       runSweep();
     } finally {
-      selfWrite = false;
+      for (const el of touchedThisRound) selfFingerprints.set(el, fingerprint(el));
+      touchedThisRound.clear();
     }
   };
+  let touchedThisRound = /* @__PURE__ */ new Set();
   function runSweep() {
     if (win.innerWidth > MOBILE_MAX_WIDTH) {
-      doc.querySelectorAll(`[${CLAMP_ATTR}]`).forEach(clearEl);
+      clearAll();
+      selfFingerprints.clear();
       return;
     }
     const vw = win.innerWidth;
     const cardEl = doc.querySelector("[data-composer-card]");
     const cardRect = cardEl ? cardEl.getBoundingClientRect() : null;
+    const targetEl = anchorCfg?.targetSelector ? doc.querySelector(anchorCfg.targetSelector) : null;
+    const targetRect = targetEl ? targetEl.getBoundingClientRect() : null;
+    const gap = anchorCfg?.gap ?? 2;
+    for (const el of [...managed.keys()]) {
+      clearEl(el);
+      touchedThisRound.add(el);
+    }
+    for (const el of doc.querySelectorAll(`[${CLAMP_ATTR}]`)) {
+      if (managed.has(el)) continue;
+      el.style.removeProperty(CLAMP_VAR);
+      el.removeAttribute(CLAMP_ATTR);
+      touchedThisRound.add(el);
+    }
+    const candidates = /* @__PURE__ */ new Set();
     let scanned = 0;
     for (const el of doc.body.children) {
       if (scanned++ > MAX_NODES) break;
-      const had = el.getAttribute(CLAMP_ATTR) !== null;
-      if (had) el.style.removeProperty(CLAMP_VAR);
-      let dx;
+      candidates.add(el);
+    }
+    if (anchorCfg) {
+      for (const sel of [anchorCfg.btnSelector, anchorCfg.popoverSelector]) {
+        if (!sel) continue;
+        const found = doc.querySelector(sel);
+        if (found) candidates.add(found);
+      }
+    }
+    const items = [];
+    for (const el of candidates) {
+      let cs;
+      let b;
       try {
-        dx = clampOffsetFor(el, vw, cardRect);
+        cs = getComputedStyle(el);
+        b = el.getBoundingClientRect();
       } catch {
         continue;
       }
-      if (dx !== 0) {
-        el.style.setProperty(CLAMP_VAR, `${dx}px`);
-        el.setAttribute(CLAMP_ATTR, "1");
-      } else if (had) {
-        el.removeAttribute(CLAMP_ATTR);
+      items.push({ el, cs, b });
+    }
+    const writes = [];
+    for (const { el, cs, b } of items) {
+      let transform = null;
+      let dx = 0;
+      let dy = 0;
+      const isAnchor = Boolean(anchorCfg && (matchesSelector(el, anchorCfg.btnSelector) || matchesSelector(el, anchorCfg.popoverSelector)));
+      if (isAnchor && targetRect) {
+        const off = computeAnchorOffset(b, targetRect, gap);
+        dx = off.dx;
+        dy = off.dy;
+        if (dx || dy) transform = `translate(${dx}px, ${dy}px)`;
       }
+      let clampDx = 0;
+      if (cs.position === "fixed") {
+        const rect = dx === 0 ? { left: b.left, right: b.right, width: b.width, height: b.height, top: b.top, bottom: b.bottom } : {
+          left: b.left + dx,
+          right: b.right + dx,
+          width: b.width,
+          height: b.height,
+          top: b.top + dy,
+          bottom: b.bottom + dy
+        };
+        clampDx = computeClampOffset(
+          { position: cs.position, display: cs.display, visibility: cs.visibility, opacity: cs.opacity },
+          rect,
+          boundaryFor(rect, vw, cardRect)
+        );
+      }
+      if (transform || clampDx !== 0) writes.push({ el, transform, clampDx });
+      else touchedThisRound.add(el);
+    }
+    for (const { el, transform, clampDx } of writes) {
+      if (transform) {
+        if (!managed.has(el)) managed.set(el, { prevTransform: el.style.transform || "" });
+        el.style.transform = transform;
+      }
+      if (clampDx !== 0) {
+        el.style.setProperty(CLAMP_VAR, `${clampDx}px`);
+        el.setAttribute(CLAMP_ATTR, "1");
+      }
+      touchedThisRound.add(el);
     }
   }
-  ;
   const schedule = () => {
     if (!rafId) rafId = raf(sweep);
   };
@@ -2705,11 +2784,18 @@ function setupViewportClamp(deps = {}) {
   win.addEventListener("orientationchange", schedule, { passive: true });
   if (win.visualViewport) {
     win.visualViewport.addEventListener("resize", schedule);
+    win.visualViewport.addEventListener("scroll", schedule);
   }
   let mo = null;
   if (MO) {
-    mo = new MO(() => {
-      if (!selfWrite) schedule();
+    mo = new MO((records) => {
+      for (const record of records) {
+        const el = record.target;
+        const expected = selfFingerprints.get(el);
+        if (expected !== void 0 && expected === fingerprint(el)) continue;
+        schedule();
+        return;
+      }
     });
     mo.observe(doc.body, { childList: true, attributes: true, attributeFilter: ["style", "class"] });
   }
@@ -2727,10 +2813,20 @@ function setupViewportClamp(deps = {}) {
     win.removeEventListener("orientationchange", schedule);
     if (win.visualViewport) {
       win.visualViewport.removeEventListener("resize", schedule);
+      win.visualViewport.removeEventListener("scroll", schedule);
     }
-    doc.querySelectorAll(`[${CLAMP_ATTR}]`).forEach(clearEl);
+    clearAll();
+    selfFingerprints.clear();
     doc.getElementById(STYLE_ID)?.remove();
   };
+}
+function matchesSelector(el, selector) {
+  if (!selector || typeof el.matches !== "function") return false;
+  try {
+    return el.matches(selector);
+  } catch {
+    return false;
+  }
 }
 
 // client/index.js
@@ -7868,49 +7964,12 @@ function setupIosKeyboardAdapter() {
 }
 function setupAccountHide() {
 }
-function setupEffortAnchor() {
-  if (typeof window === "undefined" || typeof document === "undefined") return;
-  if (typeof requestAnimationFrame !== "function") return;
-  let raf = 0;
-  const sync = () => {
-    raf = 0;
-    if (window.innerWidth > MOBILE_MAX_WIDTH2) return;
-    const btn = document.querySelector(".dsh-claude-effort-btn");
-    const model = document.querySelector(".dsh-claude-model-btn");
-    if (!btn || !model) return;
-    if (getComputedStyle(btn).position !== "fixed") {
-      if (btn.style.transform) btn.style.transform = "";
-      const stale = document.querySelector(".dsh-claude-effort-popover");
-      if (stale && stale.style.transform) stale.style.transform = "";
-      return;
-    }
-    if (btn.style.transform) btn.style.transform = "";
-    const pop = document.querySelector(".dsh-claude-effort-popover");
-    if (pop && pop.style.transform) pop.style.transform = "";
-    const b = btn.getBoundingClientRect();
-    const m = model.getBoundingClientRect();
-    if (!b.width || !b.height || !m.width || !m.height) return;
-    const dx = Math.round(m.right + 2 - b.left);
-    const dy = Math.round(m.top + (m.height - b.height) / 2 - b.top);
-    if (!dx && !dy) return;
-    const shift = `translate(${dx}px, ${dy}px)`;
-    btn.style.transform = shift;
-    if (pop) pop.style.transform = shift;
-  };
-  const schedule = () => {
-    if (!raf) raf = requestAnimationFrame(sync);
-  };
-  window.addEventListener("resize", schedule, { passive: true });
-  window.addEventListener("orientationchange", schedule, { passive: true });
-  window.addEventListener("scroll", schedule, { passive: true, capture: true });
-  if (window.visualViewport) {
-    window.visualViewport.addEventListener("resize", schedule);
-    window.visualViewport.addEventListener("scroll", schedule);
-  }
-  document.addEventListener("focusin", schedule, true);
-  document.addEventListener("focusout", schedule, true);
-  schedule();
-}
+var EFFORT_ANCHOR = {
+  btnSelector: ".dsh-claude-effort-btn",
+  targetSelector: ".dsh-claude-model-btn",
+  popoverSelector: ".dsh-claude-effort-popover",
+  gap: 2
+};
 function setupComposerCollapse() {
   if (typeof window === "undefined" || typeof document === "undefined" || typeof MutationObserver === "undefined") return;
   if (window.innerWidth > MOBILE_MAX_WIDTH2) return;
@@ -8073,8 +8132,7 @@ function apply(ctx) {
   window.__dshOpenRemoteWorkspaceModal = (onAdded, onPickDirect, onCancel) => showRemoteWorkspaceDialog(rpcCall, onAdded, ctx, onPickDirect, onCancel);
   if (pageTweaksOn) {
     setupIosKeyboardAdapter();
-    setupEffortAnchor();
-    setupViewportClamp();
+    setupViewportClamp({ anchor: EFFORT_ANCHOR });
     setupAccountHide();
     setupComposerCollapse();
     setupMobileExperience(rpcCall, ctx);
