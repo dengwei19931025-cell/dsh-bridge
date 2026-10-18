@@ -114,7 +114,17 @@ test('左侧权限区负责让位：可收缩 + 可横滑（否则窄屏整体�
   assert.match(tools, /flex:\s*1 1 auto\s*!important/,
     'tools 必须可收缩：右侧已经不让位了，左侧必须让位，否则整行溢出卡片');
   assert.match(tools, /min-width:\s*0\s*!important/, 'tools 必须 min-width:0 才能真正收缩');
-  assert.match(tools, /overflow:\s*hidden\s*!important/, 'tools 需裁掉溢出，避免溢出内容盖到右侧组上');
+  // ⚠️ 2026-10-17 修正：tools 从 overflow:hidden 改为 overflow-x:auto。
+  // 原因（用户截图「完全权限」被挤扁）：hidden 会把 modes 的溢出内容一刀切掉，
+  // 而权限胶囊是 flex:0 1 auto，被压窄后 label 的 nowrap+ellipsis 只能裁字。
+  // 改 auto 后放不下的部分靠 tools 自己横滑（滚动条已隐藏），文字不再被裁。
+  assert.match(tools, /overflow-x:\s*auto\s*!important/,
+    'tools 必须 overflow-x:auto：hidden 会把权限胶囊的溢出文字一刀切掉（实测「完全权限」被裁）');
+  assert.doesNotMatch(tools, /overflow:\s*hidden\s*!important/,
+    'tools 不得再用 overflow:hidden（那正是「完全权限」显示不完全的根因）');
+  assert.match(tools, /scrollbar-width:\s*none\s*!important/, 'tools 横滑不应露出滚动条');
+  assert.match(rendered, /_tools"\]::-webkit-scrollbar\s*\{[^}]*display:\s*none\s*!important/,
+    'tools 的 WebKit 滚动条也要隐藏（iOS Safari 用的就是这条）');
   assert.match(modes, /flex:\s*1 1 auto\s*!important/, 'modes 必须可收缩');
   assert.match(modes, /min-width:\s*0\s*!important/, 'modes 必须 min-width:0');
   assert.match(modes, /overflow-x:\s*auto\s*!important/,
@@ -122,6 +132,56 @@ test('左侧权限区负责让位：可收缩 + 可横滑（否则窄屏整体�
   assert.match(modes, /scrollbar-width:\s*none\s*!important/, '横滑不应露出滚动条');
   assert.match(rendered, /_modes"\]::-webkit-scrollbar\s*\{[^}]*display:\s*none\s*!important/,
     'WebKit 也要隐藏滚动条（iOS Safari 用的就是这条）');
+});
+
+// ── 权限胶囊必须显示完整（2026-10-17 用户截图：「完全权限」被挤扁）────────────────
+//
+// 实测（390px，切到「完全权限」档）：label width=52px，而 4 个汉字 @13px 需要约 52px
+// —— 正好卡在边界，字被裁/挤扁，用户看到四字挤成一团、认不出来。
+// 根因链：右侧（模型 + Medium）吃空间 → tools 被压 → modes scrollW=64 而 clientW=51
+// → 胶囊（flex:0 1 auto）被压窄 → label 的 nowrap+ellipsis 无处可去只能裁字。
+//
+// 修法三层：胶囊 flex:0 0 auto + min-width:max-content；label 取消省略号；
+// tools 改 overflow-x:auto（让溢出靠横滑而不是被裁）。
+// 压力验收（320px + 8 字超长档位名）：胶囊 129px 完整显示，整行无控件越出卡片右缘。
+test('权限胶囊必须显示完整：不被压窄、文字不被裁', () => {
+  // ① 胶囊本身绝不被压窄
+  const bodiesOf = (cls) => {
+    const out = [];
+    for (const m of MOBILE_STYLES_CSS.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      if (m[1].includes(`.${cls}`)) out.push(m[2]);
+    }
+    return out.join('\n');
+  };
+  const permBtn = bodiesOf('dsh-claude-perm-btn');
+  assert.ok(permBtn.trim(), '必须存在 .dsh-claude-perm-btn 规则');
+  assert.match(permBtn, /flex:\s*0 0 auto\s*!important/,
+    '权限胶囊必须 flex:0 0 auto —— 0 1 auto 会被压窄，文字随之被裁');
+  assert.match(permBtn, /min-width:\s*max-content\s*!important/,
+    '权限胶囊必须 min-width:max-content：按内容定宽，不参与压缩');
+  // 外层容器同样不能压它（胶囊是它的子元素）
+  const permContainer = bodiesOf('dsh-claude-perm-container');
+  assert.ok(permContainer.trim(), '必须存在 .dsh-claude-perm-container 规则');
+  assert.match(permContainer, /flex:\s*0 0 auto\s*!important/, '容器也必须 0 0 auto');
+  assert.match(permContainer, /min-width:\s*max-content\s*!important/, '容器也必须 max-content');
+  // ② label 不能走省略号（省略号 = 用户看到的就是残缺文字）
+  const permLabel = bodiesOf('dsh-claude-perm-label');
+  assert.ok(permLabel.trim(), '必须存在 .dsh-claude-perm-label 规则');
+  assert.match(permLabel, /text-overflow:\s*clip\s*!important/,
+    'label 不得走 ellipsis：权限名是功能标识，残缺会让用户认不出当前档位');
+  assert.doesNotMatch(permLabel, /text-overflow:\s*ellipsis/, 'label 不得出现 ellipsis');
+  assert.match(permLabel, /white-space:\s*nowrap\s*!important/, 'label 必须单行（权限名是短标签）');
+  assert.match(permLabel, /overflow:\s*visible\s*!important/, 'label 不得裁切自身');
+  assert.match(permLabel, /flex:\s*0 0 auto\s*!important/, 'label 本身也不参与压缩');
+  // ③ 三条规则都必须在手机端块内（电脑端空间充裕，且原本就是完好的）
+  for (const cls of ['dsh-claude-perm-btn', 'dsh-claude-perm-label']) {
+    const i = cssNoComment.indexOf(`.${cls}`);
+    assert.ok(i > 0, `找不到 .${cls}`);
+    const opens = (cssNoComment.slice(0, i).match(/\{/g) || []).length;
+    const closes = (cssNoComment.slice(0, i).match(/\}/g) || []).length;
+    assert.equal(opens - closes, 1, `.${cls} 必须在 max-width:767px 块内`);
+  }
+  assert.ok(rawBundle.includes('dsh-claude-perm-btn'), '产物必须带上，请重新构建');
 });
 
 test('作用范围：全部改动必须限定在 max-width:767px 内（电脑端一个像素都不许动）', () => {
@@ -202,6 +262,43 @@ test('手机端必须保留账户按钮与浮层（那是打开设置的唯一�
   assert.ok(popRule, '必须有一条浮层规则');
   assert.doesNotMatch(popRule[1], /display:\s*none/, '账户浮层绝不能 display:none（里面有设置项）');
   assert.match(popRule[1], /max-width:\s*calc\(100vw - 24px\)\s*!important/, '浮层宽度必须约束到手机屏内');
+});
+
+// ── 「积分」读数必须收窄（2026-10-17 用户要求：它占的位置太多了）──────────────────
+//
+// 实测（390px）：第三方插件 dsh-connect-workbuddy 通过宿主共享槽位
+// conversation.input.right 渲染 [刷新按钮 20px] + [文本 96px] = **116px**，
+// 是整个输入行最宽的一段外来内容，把权限胶囊和模型钮都挤扁了。
+// 文本形如「WB.1,222（积分）」：数字部分仅 37.7px，而「（积分）」3 个全角字符
+// 就要 22px —— 单位标签比数字本身还占地方。
+//
+// 用户明确要求"把它缩短一点"。做法是**只收窄、不隐藏**：那是渠道接入的核心读数，
+// 用户没说不要；隐藏属于越权修改第三方插件功能。
+test('「积分」读数必须收窄：限宽 + 可收缩 + 省略号', () => {
+  const right = [...MOBILE_STYLES_CSS.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+    .filter((m) => m[1].includes('[data-slot="conversation.input.right"]'))
+    .map((m) => m[2]).join('\n');
+  assert.ok(right.trim(), '必须有一条 conversation.input.right 规则');
+  // ① 上限必须明显小于它原本的 116px（否则等于没缩短）
+  const maxW = Number(right.match(/max-width:\s*(\d+)px/)?.[1] || 0);
+  assert.ok(maxW > 0 && maxW <= 100, `积分必须有 max-width 上限（原本 116px），当前 ${maxW}px`);
+  assert.ok(maxW >= 40, `上限不应低于 40px（否则数字都看不全），当前 ${maxW}px`);
+  // ② 必须允许收缩 + 裁掉溢出（否则子项限宽也白搭：父级按内容定宽会吃光空间）
+  assert.match(right, /flex:\s*0 1 auto\s*!important/, '积分容器必须可收缩（0 1 auto）');
+  assert.match(right, /min-width:\s*0\s*!important/, '积分容器必须 min-width:0，否则收缩无从发生');
+  assert.match(right, /overflow:\s*hidden\s*!important/, '积分容器必须裁掉溢出');
+  // ③ 刷新按钮必须保住可点尺寸（20px），不参与压缩
+  assert.match(right, /width:\s*20px\s*!important/, '刷新按钮必须固定 20px（保证点得中）');
+  // ④ 文本必须走省略号：放不下时末尾 …，而不是把邻居顶出去
+  assert.match(right, /text-overflow:\s*ellipsis\s*!important/, '积分文本必须走省略号');
+  assert.match(right, /white-space:\s*nowrap\s*!important/, '积分文本必须单行');
+  // ⑤ 必须仍在手机端块内（电脑端空间充裕，读数应完整显示）
+  const i = cssNoComment.indexOf('[data-slot="conversation.input.right"]');
+  assert.ok(i > 0, '找不到 conversation.input.right');
+  const opens = (cssNoComment.slice(0, i).match(/\{/g) || []).length;
+  const closes = (cssNoComment.slice(0, i).match(/\}/g) || []).length;
+  assert.equal(opens - closes, 1, '积分收窄规则必须在 max-width:767px 块内');
+  assert.ok(rawBundle.includes('conversation.input.right'), '产物必须带上，请重新构建');
 });
 
 // ── 「思考强度」是皮肤画的 fixed 元素，不在行内：必须补偿 iOS 键盘造成的坐标漂移 ──────────

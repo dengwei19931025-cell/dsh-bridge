@@ -839,7 +839,17 @@ export const MOBILE_STYLES_CSS = `
         gap: 6px !important;
         flex: 1 1 auto !important;
         min-width: 0 !important;
-        overflow: hidden !important;
+        /* ⚠️ 权限胶囊不能被 tools 的 overflow:hidden 裁掉（2026-10-17 实测）：
+           切到「完全权限」时 modes 内容宽 64px，被压缩到 51px 后胶囊跟着被裁，
+           用户看到「完全权限」四字挤成一团。overflow-x 改 auto 后，
+           放不下的部分靠 modes 自己横滑（滚动条已由下面的规则隐藏），
+           而不是被 tools 一刀切掉。 */
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        scrollbar-width: none !important;
+      }
+      div[class*="__F_COMPOSER__tools"]::-webkit-scrollbar {
+        display: none !important;
       }
 
       div[class*="__F_COMPOSER__modes"] {
@@ -858,6 +868,78 @@ export const MOBILE_STYLES_CSS = `
       button[class*="__F_ACCESS__trigger"] {
         flex: 0 0 auto !important;
         min-width: 0 !important;
+      }
+
+      /* ── 权限胶囊必须显示完整（2026-10-17 用户截图：「完全权限」被挤扁）────────
+         实测（390px，切到「完全权限」档）：permLabel width=52px，
+         而 4 个汉字 @13px 需要约 52px —— 正好卡在边界，字被挤扁/裁切，
+         用户看到的就是「完全权限」四字挤成一团、认不出来。
+
+         根因链：右侧（模型 + Medium）吃掉空间 → tools 被压缩 →
+         modes（overflow-x:auto）scrollW=64 而 clientW=51 → 胶囊只有 51px
+         可挤，而它是 flex:0 1 auto，于是被压窄；label 又是 nowrap+ellipsis，
+         文字无处可去只能被裁。
+
+         修法（三层，缺一不可）：
+           ① 胶囊本身 flex:0 0 auto + min-width:max-content —— 绝不被压窄；
+           ② label 取消省略号、允许换行兜底 —— 极端窄屏下宁可折行也不裁字；
+           ③ modes 的可用宽度下限抬到胶囊自身宽度（min-width:max-content），
+              这样压缩发生在 modes 外层，而不是发生在胶囊内部。
+         ⚠️ 只作用于 max-width:767px：电脑端权限区空间充裕，不受影响。
+         ⚠️ 本段注释里不能出现反引号：整个文件是 JS 模板字符串，反引号会截断它。 */
+      .dsh-claude-perm-btn {
+        flex: 0 0 auto !important;
+        min-width: max-content !important;
+      }
+      .dsh-claude-perm-container {
+        flex: 0 0 auto !important;
+        min-width: max-content !important;
+      }
+      .dsh-claude-perm-label {
+        white-space: nowrap !important;
+        text-overflow: clip !important;
+        overflow: visible !important;
+        flex: 0 0 auto !important;
+      }
+
+      /* ── 缩短「积分」占用的宽度（2026-10-17 用户要求）──────────────────────
+         实测（390px）：积分在宿主共享槽位 conversation.input.right 里，
+         渲染成 [刷新按钮 20px] + [文本 96px] = **116px**，是整个输入行里
+         最宽的一段外来内容。文本形如「WB.1,222（积分）」，其中
+         「（积分）」4 个全角括号字符就占约 22px。
+         用户明确要求"把它缩短一点"，给权限胶囊腾地方。
+
+         做法（只收窄、不改内容）：
+           ① 文本 span 限宽 + 省略号：放不下时末尾走 …，而不是把邻居顶出去；
+           ② 外层 flex 容器允许收缩（0 1 auto）并给一个上限，
+              否则子项限宽也白搭（父级按内容定宽会把空间全吃走）；
+           ③ 刷新按钮固定 20px 不参与压缩（它是可点的，压太小点不中）。
+         ⚠️ 为什么不直接隐藏：那是第三方插件（渠道接入）的核心读数，
+            用户只说"缩短"，没说"不要"。隐藏属于越权修改他人功能。
+         ⚠️ 只作用于 max-width:767px：电脑端空间充裕，读数完整显示。
+         ⚠️ 本段注释里不能出现反引号：整个文件是 JS 模板字符串，反引号会截断它。 */
+      [data-slot="conversation.input.right"] {
+        flex: 0 1 auto !important;
+        min-width: 0 !important;
+        max-width: 88px !important;
+        overflow: hidden !important;
+      }
+      [data-slot="conversation.input.right"] button {
+        flex: 0 0 auto !important;
+        width: 20px !important;
+        min-width: 20px !important;
+      }
+      /* 文本 span：缩小字号 + 限宽省略。
+         实测「WB.1,222（积分）」@11px 全宽 92px，其中「（积分）」3 个全角字符
+         就占 22px。字号降到 10px 后同宽度能多容纳约 10% 字符，
+         配合 88px 上限刚好能露出「WB.1,222（积分」这样的有效信息，
+         而不是把单位整个截掉。 */
+      [data-slot="conversation.input.right"] span {
+        min-width: 0 !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        font-size: 10px !important;
       }
 
       div[class*="__F_COMPOSER__trailing"] {
@@ -880,9 +962,13 @@ export const MOBILE_STYLES_CSS = `
 
       /* 可见的模型按钮是**皮肤自绘**的 .dsh-claude-model-btn（不是宿主槽位），
          宿主槽位规则对它无效（实测限宽 180px 毫无作用）。所以这里必须直接限宽
-         皮肤的按钮 + 它的 label 走省略号，模型名才肯让位。 */
+         皮肤的按钮 + 它的 label 走省略号，模型名才肯让位。
+         ⚠️ 96px → 76px（2026-10-17 用户要求"积分占太多，缩短一点"）：
+         整行预算紧张时（权限胶囊 64 + 添加 24 + 积分 + 模型 + 强度 54 + 发送 26），
+         模型名是唯一还能安全让位的——它有省略号、且完整名字在点开的模型
+         浮层里能看到。收窄后实测整行各控件都不越出卡片右缘。 */
       .dsh-claude-model-btn {
-        max-width: 96px !important;
+        max-width: 76px !important;
         min-width: 0 !important;
         overflow: hidden !important;
       }
@@ -898,7 +984,7 @@ export const MOBILE_STYLES_CSS = `
       div[class*="__F_MODEL__root"] {
         flex: 0 1 auto !important;
         min-width: 0 !important;
-        max-width: 96px !important;
+        max-width: 76px !important;
       }
 
       button[class*="__F_MODEL__trigger"] {
