@@ -5122,16 +5122,18 @@ function setupAccountHide() { /* 已停用：见上方说明 */ }
 // 这正是"偶发挤出边框"的来源：命中哪个竞态窗口取决于时序，压测无法稳定复现。
 //
 // 现在由 setupViewportClamp 作为**唯一观测者**统一处理：
-//   一次 rAF 内统一清除 → 统一测量 → 把「锚定 + 越界拉回」合成 → 统一写入。
-// 锚定目标由调用方以选择器注入（见下方 EFFORT_ANCHOR），因此 clamp 层仍然
-// **不认识任何皮肤类名**，换皮肤只要换这里的选择器。
+//   一次 rAF 内统一清除 → 统一测量 → 把「漂移补偿 + 越界拉回」合成 → 统一写入。
+// 这里只注入两个选择器，因此 clamp 层仍然**不认识任何皮肤类名**。
+//
+// ⚠️ 2026-10-20 修正（皮肤 0.17.0 后出现"控件位置乱跑"）：
+// 补偿基准从「模型按钮右缘 + 2」改为**皮肤自己写的 inline left/top**
+// （见 viewport-clamp.js 的 computeDriftOffset）。绝对位置假设在布局未稳定时
+// 会算出 200+ px 的偏移且不自愈，实测 320/360/375px 下强度按钮飞到 (454,330)。
 
-/** 「思考强度」按钮锚在模型按钮右侧（皮肤 dsh-claude-style 的自绘元素）。 */
+/** 「思考强度」按钮与浮层（皮肤 dsh-claude-style 自绘的 body 下 fixed 元素）。 */
 const EFFORT_ANCHOR = {
   btnSelector: '.dsh-claude-effort-btn',
-  targetSelector: '.dsh-claude-model-btn',
   popoverSelector: '.dsh-claude-effort-popover',
-  gap: 2,
 };
 
 // 移动端输入框折叠/展开（body.dsh-composer-collapsed）。

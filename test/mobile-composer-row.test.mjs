@@ -312,13 +312,15 @@ test('「积分」读数必须收窄：限宽 + 可收缩 + 省略号', () => {
 // ⚠️ 2026-10-19：独立的 setupEffortAnchor 已**删除并并入** setupViewportClamp。
 //    两层各自测量、各自写位移，互相看不见对方 —— 拉回层按尚未锚定的旧坐标判定，
 //    两者合起来是错的，这就是"偶发挤出边框"。现在由唯一观测者统一处理，
-//    锚定目标由调用方以 EFFORT_ANCHOR 注入。本组只守"契约"，行为细节见
-//    test/viewport-clamp.test.mjs 的单一观测者一节。
-test('锚定目标由调用方注入：入口必须把 EFFORT_ANCHOR 传给唯一观测者', () => {
+//    选择器由调用方以 EFFORT_ANCHOR 注入。本组只守"契约"，行为细节见
+//    test/viewport-clamp.test.mjs 的单一观测者与漂移补偿两节。
+// ⚠️ 2026-10-20：补偿基准从「模型按钮右缘」改为皮肤自己的 inline left/top
+//    （绝对位置假设在布局未稳时会算出 200+ px 偏移，实测强度按钮飞到屏幕外）。
+test('锚定选择器由调用方注入：入口必须把 EFFORT_ANCHOR 传给唯一观测者', () => {
   assert.match(clientIndex, /const EFFORT_ANCHOR = \{/, '必须保留锚定配置常量');
   assert.match(clientIndex, /btnSelector:\s*'\.dsh-claude-effort-btn'/, '锚的主体是皮肤自绘的强度按钮');
-  assert.match(clientIndex, /targetSelector:\s*'\.dsh-claude-model-btn'/, '锚定目标是模型按钮右缘');
   assert.match(clientIndex, /popoverSelector:\s*'\.dsh-claude-effort-popover'/, '浮层承受同一坐标系误差，必须一起补');
+  assert.doesNotMatch(clientIndex, /targetSelector/, '不得再依赖模型按钮做绝对位置锚定（2026-10-20 已改漂移补偿）');
   assert.match(clientIndex, /setupViewportClamp\(\{ anchor: EFFORT_ANCHOR \}\)/,
     '必须由唯一观测者统一处理（不得再单独调用已删除的 setupEffortAnchor）');
   assert.doesNotMatch(clientIndex, /setupEffortAnchor\(\);/, '不得再调用第二个观测者');
@@ -342,7 +344,7 @@ test('补偿只加 transform / CSS 变量，绝不改皮肤的定位属性（否
 
 test('安全阀：坐标健康时不加位移、清掉旧补偿再测量（防自我累积）', () => {
   const clampSrc = read('client/viewport-clamp.js');
-  assert.match(clampSrc, /computeAnchorOffset/, '锚定必须走纯计算（坐标系没漂移时自然返回 0）');
+  assert.match(clampSrc, /computeDriftOffset/, '补偿必须走纯计算（坐标系没漂移时自然返回 0）');
   // 统一清除阶段：把自己上次写的所有位移都撤掉，才量得到皮肤的真实位置
   assert.match(clampSrc, /\/\/ ① 统一清除/, '必须有统一清除阶段');
   assert.match(clampSrc, /clearEl\(el\)/, '清除时必须还原 transform 与 CSS 变量');

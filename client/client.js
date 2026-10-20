@@ -2617,6 +2617,10 @@ function isVisible({ display, visibility, opacity, rect }) {
   if (display === "none" || visibility === "hidden" || Number(opacity) === 0) return false;
   return rect.width > 0 && rect.height > 0;
 }
+function isOpen(el, cs, rect) {
+  if (el.getAttribute("data-open") === "true") return true;
+  return isVisible({ display: cs.display, visibility: cs.visibility, opacity: cs.opacity, rect });
+}
 function computeClampOffset(style, rect, boundary) {
   if (style.position !== "fixed") return 0;
   if (!isVisible({ ...style, rect })) return 0;
@@ -2627,12 +2631,17 @@ function computeClampOffset(style, rect, boundary) {
   if (rect.left < bl + PAD) dx = Math.max(dx, bl + PAD - rect.left);
   return Math.round(dx);
 }
-function computeAnchorOffset(btnRect, targetRect, gap = 2) {
-  if (!btnRect?.width || !btnRect?.height) return { dx: 0, dy: 0 };
-  if (!targetRect?.width || !targetRect?.height) return { dx: 0, dy: 0 };
+function computeDriftOffset(rect, inlineLeft, inlineTop) {
+  const il = Number.parseFloat(inlineLeft);
+  const it = Number.parseFloat(inlineTop);
+  const hasX = Number.isFinite(il);
+  const hasY = Number.isFinite(it);
+  if (!hasX && !hasY) return { dx: 0, dy: 0, usable: false };
+  if (!rect || !rect.width || !rect.height) return { dx: 0, dy: 0, usable: false };
   return {
-    dx: Math.round(targetRect.right + gap - btnRect.left),
-    dy: Math.round(targetRect.top + (targetRect.height - btnRect.height) / 2 - btnRect.top)
+    dx: hasX ? Math.round(il - rect.left) : 0,
+    dy: hasY ? Math.round(it - rect.top) : 0,
+    usable: true
   };
 }
 function boundaryFor(rect, viewportWidth, cardRect) {
@@ -2696,9 +2705,6 @@ function setupViewportClamp(deps = {}) {
     const vw = win.innerWidth;
     const cardEl = doc.querySelector("[data-composer-card]");
     const cardRect = cardEl ? cardEl.getBoundingClientRect() : null;
-    const targetEl = anchorCfg?.targetSelector ? doc.querySelector(anchorCfg.targetSelector) : null;
-    const targetRect = targetEl ? targetEl.getBoundingClientRect() : null;
-    const gap = anchorCfg?.gap ?? 2;
     for (const el of [...managed.keys()]) {
       clearEl(el);
       touchedThisRound.add(el);
@@ -2734,17 +2740,33 @@ function setupViewportClamp(deps = {}) {
       }
       items.push({ el, cs, b });
     }
+    let drift = { dx: 0, dy: 0, usable: false };
+    if (anchorCfg?.btnSelector) {
+      const btnEl = items.find((it) => matchesSelector(it.el, anchorCfg.btnSelector));
+      if (btnEl) {
+        const inline = { left: btnEl.el.style.left, top: btnEl.el.style.top };
+        drift = computeDriftOffset(btnEl.b, inline.left, inline.top);
+        if (!drift.usable) drift = { dx: 0, dy: 0, usable: false };
+      }
+    }
     const writes = [];
     for (const { el, cs, b } of items) {
       let transform = null;
       let dx = 0;
       let dy = 0;
-      const isAnchor = Boolean(anchorCfg && (matchesSelector(el, anchorCfg.btnSelector) || matchesSelector(el, anchorCfg.popoverSelector)));
-      if (isAnchor && targetRect) {
-        const off = computeAnchorOffset(b, targetRect, gap);
-        dx = off.dx;
-        dy = off.dy;
-        if (dx || dy) transform = `translate(${dx}px, ${dy}px)`;
+      const isBtn = Boolean(anchorCfg?.btnSelector && matchesSelector(el, anchorCfg.btnSelector));
+      const isPop = Boolean(anchorCfg?.popoverSelector && matchesSelector(el, anchorCfg.popoverSelector));
+      if (isBtn && !drift.usable) {
+        touchedThisRound.add(el);
+        continue;
+      }
+      if (drift.usable && (isBtn || isPop)) {
+        const popOpen = !isPop || isOpen(el, cs, b);
+        if (popOpen) {
+          dx = drift.dx;
+          dy = drift.dy;
+          if (dx || dy) transform = `translate(${dx}px, ${dy}px)`;
+        }
       }
       let clampDx = 0;
       if (cs.position === "fixed") {
@@ -2782,6 +2804,8 @@ function setupViewportClamp(deps = {}) {
   };
   win.addEventListener("resize", schedule, { passive: true });
   win.addEventListener("orientationchange", schedule, { passive: true });
+  doc.addEventListener("focusin", schedule, true);
+  doc.addEventListener("focusout", schedule, true);
   if (win.visualViewport) {
     win.visualViewport.addEventListener("resize", schedule);
     win.visualViewport.addEventListener("scroll", schedule);
@@ -2811,6 +2835,8 @@ function setupViewportClamp(deps = {}) {
     }
     win.removeEventListener("resize", schedule);
     win.removeEventListener("orientationchange", schedule);
+    doc.removeEventListener("focusin", schedule, true);
+    doc.removeEventListener("focusout", schedule, true);
     if (win.visualViewport) {
       win.visualViewport.removeEventListener("resize", schedule);
       win.visualViewport.removeEventListener("scroll", schedule);
@@ -6986,8 +7012,8 @@ function setupMobileExperience(rpcCall, ctx) {
     `;
     leftBtn.onclick = (e) => {
       e.stopPropagation();
-      const isOpen = document.body.classList.toggle("dsh-drawer-open");
-      if (isOpen) {
+      const isOpen2 = document.body.classList.toggle("dsh-drawer-open");
+      if (isOpen2) {
         const expand = document.querySelector(
           'button[aria-label*="\u6253\u5F00\u4FA7\u8FB9\u680F"], button[title*="\u6253\u5F00\u4FA7\u8FB9\u680F"], button[aria-label*="Open sidebar"], button[title*="Open sidebar"]'
         );
@@ -7966,9 +7992,7 @@ function setupAccountHide() {
 }
 var EFFORT_ANCHOR = {
   btnSelector: ".dsh-claude-effort-btn",
-  targetSelector: ".dsh-claude-model-btn",
-  popoverSelector: ".dsh-claude-effort-popover",
-  gap: 2
+  popoverSelector: ".dsh-claude-effort-popover"
 };
 function setupComposerCollapse() {
   if (typeof window === "undefined" || typeof document === "undefined" || typeof MutationObserver === "undefined") return;

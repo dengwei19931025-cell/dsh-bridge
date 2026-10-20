@@ -49,6 +49,14 @@ function isVisible({ display, visibility, opacity, rect }) {
   return rect.width > 0 && rect.height > 0;
 }
 
+// 浮层是否「开着」。皮肤把浮层卡片默认设成 visibility:hidden + opacity:0，
+// 打开时给 data-open="true"。关着的浮层停在旧坐标上，若给它补位移，
+// 下次打开会带着错误位移出现 —— 所以只在开着时补。
+function isOpen(el, cs, rect) {
+  if (el.getAttribute('data-open') === 'true') return true;
+  return isVisible({ display: cs.display, visibility: cs.visibility, opacity: cs.opacity, rect });
+}
+
 /**
  * 纯判定核心：给定「样式快照 + 盒子 + 边界」，算出需要的 X 位移（px）。
  * 抽成纯函数是为了能在 Node 里直接单测（不依赖真实 DOM / getComputedStyle）。
@@ -71,16 +79,38 @@ export function computeClampOffset(style, rect, boundary) {
 }
 
 /**
- * 纯判定核心：把固定按钮锚回目标（模型按钮）右侧并垂直居中，返回需要的位移。
- * iOS 键盘弹起时 fixed 参照系与 rect 坐标系不同步，皮肤算出的坐标会失效
- * —— 实测按钮浮到消息区中间。这里只算差，坐标系没漂移时返回 {0,0}。
+ * 纯判定核心：算出「坐标漂移补偿」的位移（px）。
+ *
+ * 语义（2026-10-20 重写，这是修「模型/强度控件位置乱跑」的关键）：
+ * 皮肤自己会写 inline `left`/`top` 来摆放这些 fixed 控件，那串数字就是**它的意图**。
+ * 正常渲染下 `getBoundingClientRect()` 应当等于这串数字；iOS 键盘弹起等情况下
+ * 两者会错开，错开的量才是我们要补的**漂移**。
+ *
+ * 所以补偿量 = 意图 − 实际。健康时恒为 0，且天然**自愈**：
+ * 哪怕某一帧量错了、写进了错误位移，下一轮量到的「实际」包含了那个位移，
+ * 算出来的补偿会正好把它抵回去。
+ *
+ * ⚠️ 此前用的是「模型按钮右缘 + 2」这种**绝对位置假设**：布局尚未稳定时
+ * （hero → 对话切换、皮肤还没写完 left/top）会算出 200+ px 的巨大偏移并写死，
+ * 又不自愈 —— 实测 320/360/375px 下强度按钮直接飞到屏幕外（l=454, t=330）。
+ *
+ * @param {{left:number, top:number, width:number, height:number}} rect 实际渲染盒
+ * @param {string} inlineLeft 皮肤写的 left（可为 ''）
+ * @param {string} inlineTop  皮肤写的 top（可为 ''）
+ * @returns {{dx:number, dy:number, usable:boolean}}
+ *   usable=false 表示读不到意图坐标（皮肤尚未摆放），此时**不得**做任何补偿。
  */
-export function computeAnchorOffset(btnRect, targetRect, gap = 2) {
-  if (!btnRect?.width || !btnRect?.height) return { dx: 0, dy: 0 };
-  if (!targetRect?.width || !targetRect?.height) return { dx: 0, dy: 0 };
+export function computeDriftOffset(rect, inlineLeft, inlineTop) {
+  const il = Number.parseFloat(inlineLeft);
+  const it = Number.parseFloat(inlineTop);
+  const hasX = Number.isFinite(il);
+  const hasY = Number.isFinite(it);
+  if (!hasX && !hasY) return { dx: 0, dy: 0, usable: false };
+  if (!rect || !rect.width || !rect.height) return { dx: 0, dy: 0, usable: false };
   return {
-    dx: Math.round(targetRect.right + gap - btnRect.left),
-    dy: Math.round(targetRect.top + (targetRect.height - btnRect.height) / 2 - btnRect.top),
+    dx: hasX ? Math.round(il - rect.left) : 0,
+    dy: hasY ? Math.round(it - rect.top) : 0,
+    usable: true,
   };
 }
 
@@ -113,8 +143,9 @@ function fingerprint(el) {
 /**
  * 安装几何兜底（唯一观测者）。返回 teardown（供测试与热更新用）。
  *
- * @param {object} [deps.anchor] 可选的锚定配置（由调用方告知"谁是按钮、锚在谁旁边"；
- *   本模块因此不必认识任何皮肤类名）。{ btnSelector, targetSelector, popoverSelector, gap }
+ * @param {object} [deps.anchor] 可选的锚定配置（由调用方告知"谁是需要漂移补偿的控件"；
+ *   本模块因此不必认识任何皮肤类名）。{ btnSelector, popoverSelector }
+ *   注意：锚定**不需要**目标元素 —— 补偿基准是控件自己的 inline left/top。
  */
 export function setupViewportClamp(deps = {}) {
   const doc = deps.document || (typeof document !== 'undefined' ? document : null);
@@ -173,11 +204,6 @@ export function setupViewportClamp(deps = {}) {
     const cardEl = doc.querySelector('[data-composer-card]');
     const cardRect = cardEl ? cardEl.getBoundingClientRect() : null;
 
-    // 锚定目标每轮重新取：皮肤可能重建模型按钮节点
-    const targetEl = anchorCfg?.targetSelector ? doc.querySelector(anchorCfg.targetSelector) : null;
-    const targetRect = targetEl ? targetEl.getBoundingClientRect() : null;
-    const gap = anchorCfg?.gap ?? 2;
-
     // ① 统一清除：把自己上次写的所有位移全部撤掉，得到与皮肤一致的测量基准。
     //    ⚠️ 不先清就量，量到的是"补偿后"的位置 → 下一轮判定"在界内" → 撤掉 →
     //    弹回界外 → 再补偿…… 实测表现为位置来回抖动（这正是"偶发"的来源之一）。
@@ -222,20 +248,47 @@ export function setupViewportClamp(deps = {}) {
       items.push({ el, cs, b });
     }
 
-    // ③ 统一计算：锚定与拉回在同一次计算里合成。
+    // ③ 统一计算：锚定（漂移补偿）与拉回在同一次计算里合成。
+    //
+    // 漂移只从**按钮自己**量一次：它是唯一有皮肤明确意图坐标（inline left/top）的元素。
+    // 浮层承受同一个坐标系误差，复用按钮算出的补偿量 —— 不能各自算（浮层的 left/top
+    // 是另一套语义，独立算会把它甩到屏幕外，实测 l=328/r=592 越界 202px）。
+    let drift = { dx: 0, dy: 0, usable: false };
+    if (anchorCfg?.btnSelector) {
+      const btnEl = items.find((it) => matchesSelector(it.el, anchorCfg.btnSelector));
+      if (btnEl) {
+        const inline = { left: btnEl.el.style.left, top: btnEl.el.style.top };
+        drift = computeDriftOffset(btnEl.b, inline.left, inline.top);
+        // 皮肤还没摆放（读不到意图坐标）→ 绝不补偿，否则就是拿错误基准乱推
+        if (!drift.usable) drift = { dx: 0, dy: 0, usable: false };
+      }
+    }
+
     const writes = [];
     for (const { el, cs, b } of items) {
       let transform = null;
       let dx = 0;
       let dy = 0;
 
-      const isAnchor = Boolean(anchorCfg && (matchesSelector(el, anchorCfg.btnSelector)
-        || matchesSelector(el, anchorCfg.popoverSelector)));
-      if (isAnchor && targetRect) {
-        const off = computeAnchorOffset(b, targetRect, gap);
-        dx = off.dx;
-        dy = off.dy;
-        if (dx || dy) transform = `translate(${dx}px, ${dy}px)`;
+      const isBtn = Boolean(anchorCfg?.btnSelector && matchesSelector(el, anchorCfg.btnSelector));
+      const isPop = Boolean(anchorCfg?.popoverSelector && matchesSelector(el, anchorCfg.popoverSelector));
+
+      // ⚠️ 皮肤还没摆放锚定控件（inline left/top 为空）时必须**整个撒手**，
+      // 连越界拉回都不做。实测：此时按钮停在 left=0，拉回层按 PAD 往里推了 6px
+      // 并写死，皮肤随后摆放好也顶着这 6px 偏移（320/360/375px 上稳定复现）。
+      if (isBtn && !drift.usable) {
+        touchedThisRound.add(el);
+        continue;
+      }
+
+      if (drift.usable && (isBtn || isPop)) {
+        // 浮层只在开着时才补：关着的浮层本来就停在旧坐标，补了会在下次打开时错位
+        const popOpen = !isPop || isOpen(el, cs, b);
+        if (popOpen) {
+          dx = drift.dx;
+          dy = drift.dy;
+          if (dx || dy) transform = `translate(${dx}px, ${dy}px)`;
+        }
       }
 
       let clampDx = 0;
@@ -277,6 +330,10 @@ export function setupViewportClamp(deps = {}) {
   const schedule = () => { if (!rafId) rafId = raf(sweep); };
   win.addEventListener('resize', schedule, { passive: true });
   win.addEventListener('orientationchange', schedule, { passive: true });
+  // 键盘弹起/收起是焦点变化驱动的：iOS 会在 focus 之后才最终确定 fixed 参照系。
+  // 不监听这两条，漂移补偿就会停留在"焦点变化前一帧"的旧值（实测 320/360/375px 卡死）。
+  doc.addEventListener('focusin', schedule, true);
+  doc.addEventListener('focusout', schedule, true);
   // ⚠️ 刻意**不**监听 scroll：用户往上翻历史时那正是最不该被我们插一脚的时刻，
   // 而固定定位控件的横坐标也不随纵向滚动变化（只有键盘导致视口高度变化时才会动，
   // 那条已由 visualViewport.resize 覆盖）。少一个监听器 = 少一个抢滚动的机会。
@@ -313,6 +370,8 @@ export function setupViewportClamp(deps = {}) {
     if (mo) { mo.disconnect(); mo = null; }
     win.removeEventListener('resize', schedule);
     win.removeEventListener('orientationchange', schedule);
+    doc.removeEventListener('focusin', schedule, true);
+    doc.removeEventListener('focusout', schedule, true);
     if (win.visualViewport) {
       win.visualViewport.removeEventListener('resize', schedule);
       win.visualViewport.removeEventListener('scroll', schedule);

@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { computeClampOffset, computeAnchorOffset } from '../client/viewport-clamp.js';
+import { computeClampOffset, computeDriftOffset } from '../client/viewport-clamp.js';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const read = (f) => readFileSync(resolve(repoRoot, f), 'utf8');
@@ -175,39 +175,54 @@ test('不得监听 window scroll：用户翻阅历史时那是最不该被插一
 //
 // 下面这组守住新架构的三条硬约束。
 
-test('锚定补偿：把按钮贴回目标右侧并垂直居中（纯计算，可单测）', () => {
-  // 实测形态：模型按钮 200→249（高 28），强度按钮被皮肤留在 left=120（高 28，顶不齐）
-  const target = { left: 200, right: 249, top: 700, bottom: 728, width: 49, height: 28 };
-  const btn = { left: 120, right: 169, top: 690, bottom: 718, width: 49, height: 28 };
-  const off = computeAnchorOffset(btn, target, 2);
-  assert.equal(off.dx, 249 + 2 - 120, '横向：目标右缘 + gap − 按钮左缘');
-  assert.equal(off.dy, 700 + (28 - 28) / 2 - 690, '纵向：垂直居中差');
+test('漂移补偿：补偿量 = 皮肤意图坐标 − 实际渲染位置', () => {
+  // 皮肤写 left=215 / top=587，实际却渲染在 454/330（fixed 参照系漂移了）
+  const rect = { left: 454, right: 484, top: 330, bottom: 358, width: 30, height: 28 };
+  const off = computeDriftOffset(rect, '215px', '587px');
+  assert.equal(off.usable, true);
+  assert.equal(off.dx, 215 - 454, '横向补偿把实际位置拉回意图位置');
+  assert.equal(off.dy, 587 - 330, '纵向同理');
 });
 
-test('锚定补偿：坐标已对齐时必须返回零（健康路径零影响）', () => {
-  const target = { left: 200, right: 249, top: 700, bottom: 728, width: 49, height: 28 };
-  const btn = { left: 251, right: 300, top: 700, bottom: 728, width: 49, height: 28 };
-  const off = computeAnchorOffset(btn, target, 2);
+test('漂移补偿：健康时恒为 0（坐标系没漂移就一个像素都不动）', () => {
+  const rect = { left: 285, right: 315, top: 544, bottom: 572, width: 30, height: 28 };
+  const off = computeDriftOffset(rect, '285px', '544px');
+  assert.equal(off.usable, true);
   assert.equal(off.dx, 0);
   assert.equal(off.dy, 0);
 });
 
-test('锚定补偿：目标或按钮还没布局出来时不做任何补偿', () => {
-  const target = { left: 200, right: 249, top: 700, bottom: 728, width: 49, height: 28 };
-  // 皮肤尚未挂载 → 零尺寸盒子（此时补一个位移会把按钮甩到屏幕外）
-  assert.deepEqual(computeAnchorOffset({ width: 0, height: 0, left: 0, right: 0 }, target, 2), { dx: 0, dy: 0 });
-  assert.deepEqual(computeAnchorOffset({ width: 49, height: 28, left: 10, right: 59 }, null, 2), { dx: 0, dy: 0 });
+test('漂移补偿：读不到意图坐标时不得补偿（皮肤还没摆放 → 基准不可信）', () => {
+  const rect = { left: 300, right: 330, top: 500, bottom: 528, width: 30, height: 28 };
+  assert.equal(computeDriftOffset(rect, '', '').usable, false,
+    'inline left/top 都为空时必须 usable=false：此时任何补偿都是拿错误基准乱推');
+  assert.equal(computeDriftOffset(rect, null, undefined).usable, false);
+  // 皮肤尚未挂载 → 零尺寸盒子
+  assert.equal(computeDriftOffset({ width: 0, height: 0, left: 0, top: 0 }, '215px', '587px').usable, false);
 });
 
-test('越界判定必须基于锚定之后的位置（两层旧代码就错在这里）', () => {
-  // 复现：按钮此刻 left=300（宽 49，右缘 349），锚定把它往左带 40px（到右缘 309）；
-  // 卡片右缘 302。若按**锚定前**的坐标判（349 > 302），会被拉回 −53；
-  // 但锚定后右缘是 309，正确位移应是 302 − 6 − 309 = −13。
+test('漂移补偿必须自愈：把补偿量再喂回去，下一轮应算回 0', () => {
+  // 这是修「位置卡死」的核心性质：某帧量错了也不会永久错位。
+  const intended = { left: 215, top: 587 };
+  const drifted = { left: 454, top: 330, width: 30, height: 28 };
+  const first = computeDriftOffset(drifted, `${intended.left}px`, `${intended.top}px`);
+  const applied = { left: drifted.left + first.dx, top: drifted.top + first.dy, width: 30, height: 28 };
+  assert.equal(applied.left, 215);
+  assert.equal(applied.top, 587);
+  const second = computeDriftOffset(applied, `${intended.left}px`, `${intended.top}px`);
+  assert.equal(second.dx, 0, '补偿生效后下一轮必须归零（否则会越补越大）');
+  assert.equal(second.dy, 0);
+});
+
+test('越界判定必须基于补偿之后的位置', () => {
+  // 按钮此刻 left=300（宽 49，右缘 349），补偿把它往左带 40px（到右缘 309）；
+  // 卡片右缘 302。若按**补偿前**的坐标判（349 > 302），会被拉回 −53；
+  // 但补偿后右缘是 309，正确位移应是 302 − 6 − 309 = −13。
   const before = { left: 300, right: 349, width: 49, height: 28 };
   const afterAnchor = { left: before.left - 40, right: before.right - 40, width: 49, height: 28 };
   assert.equal(computeClampOffset(fixedBtn(), before, card(16, 302)), 302 - 6 - 349);
   assert.equal(computeClampOffset(fixedBtn(), afterAnchor, card(16, 302)), 302 - 6 - 309,
-    '锚定后的位置才是真实落点，判定必须用它');
+    '补偿后的位置才是真实落点，判定必须用它');
 });
 
 test('单一观测者：不得再出现第二个几何补偿器（setupEffortAnchor 已并入）', () => {
@@ -238,4 +253,56 @@ test('自锁必须精确到元素（布尔自锁会吞掉皮肤的真实变更�
   assert.match(source, /function fingerprint\(/, '必须按元素记录写入后的样式指纹');
   assert.doesNotMatch(source, /let selfWrite\s*=\s*false/,
     '不得再用全局布尔自锁：它会把皮肤的变更一起忽略掉');
+});
+
+// ── 2026-10-20 皮肤 0.17.0 后「控件位置乱跑」的回归防线 ────────────────────────
+//
+// 实测（320/360/375px）：皮肤把强度按钮写在 left=215/top=587，它却渲染在 (454,330)
+// —— 屏幕外。原因是我们那版锚定用「模型按钮右缘 + 2」的**绝对位置假设**，
+// 布局未稳定时算出 239px 位移并写死，且此后没有任何事件触发重算。
+// 改成漂移补偿后自愈；下面守住这个语义不要再退化。
+
+test('锚定不得再用「模型按钮右缘」这类绝对位置假设', () => {
+  assert.doesNotMatch(source, /targetSelector/, '不得再依赖目标元素：绝对位置假设会在布局未稳时算出巨大偏移');
+  assert.doesNotMatch(source, /targetRect|gap\s*=\s*anchorCfg/, '不得再读取目标元素的 rect');
+  assert.match(source, /computeDriftOffset/, '必须走漂移补偿（意图坐标 − 实际位置）');
+});
+
+test('漂移补偿必须用皮肤自己写的 inline left/top 作为意图基准', () => {
+  assert.match(source, /el\.style\.left/, '必须读取皮肤的 inline left 作为意图');
+  assert.match(source, /el\.style\.top/, '必须读取皮肤的 inline top 作为意图');
+  // 读不到意图时必须放弃补偿（usable=false），不能退回任何"猜测"
+  assert.match(source, /if \(!drift\.usable\)/, '不可用时必须整体放弃补偿');
+});
+
+test('浮层必须复用按钮的补偿量，不得独立计算', () => {
+  // 独立算会把浮层的 left 当成按钮左缘去贴目标右缘 —— 实测把浮层甩到 l=328/r=592
+  assert.match(source, /let drift = \{ dx: 0, dy: 0, usable: false \}/,
+    '漂移量必须只算一次，作为唯一来源');
+  const calcBlock = source.slice(source.indexOf('// ③ 统一计算'), source.indexOf('// ④ 统一写入'));
+  assert.doesNotMatch(calcBlock, /computeDriftOffset\(b,/, '循环内不得对每个元素各算一次漂移');
+  assert.match(calcBlock, /dx = drift\.dx/, '浮层与按钮共用同一份漂移量');
+});
+
+test('关着的浮层不得预置补偿（补了会在下次打开时错位）', () => {
+  assert.match(source, /function isOpen\(/, '必须有浮层开启判定');
+  assert.match(source, /isOpen\(el, cs, b\)/, '计算位移前必须确认浮层开着');
+  assert.match(source, /data-open/, '开启判定必须认皮肤的 data-open 属性');
+});
+
+test('皮肤未摆放锚定控件时必须整个撒手（连越界拉回也不做）', () => {
+  // 实测：皮肤还没写 inline left/top 时按钮停在 left=0，拉回层按 PAD 往里推 6px
+  // 并写死，皮肤随后摆放好也顶着这 6px（320/360/375px 稳定复现）。
+  assert.match(source, /if \(isBtn && !drift\.usable\)/, '必须有"未摆放就整个撒手"的守卫');
+  const guardBlock = source.slice(source.indexOf('if (isBtn && !drift.usable)'), source.indexOf('if (drift.usable && (isBtn || isPop))'));
+  assert.match(guardBlock, /continue;/, '守卫必须直接跳过该元素（不能让拉回层继续处理）');
+});
+
+test('必须监听焦点变化：iOS 键盘是 focus 之后才确定 fixed 参照系', () => {
+  assert.match(source, /addEventListener\('focusin', schedule, true\)/,
+    '必须监听 focusin（捕获）：否则补偿停在焦点变化前一帧的旧值');
+  assert.match(source, /addEventListener\('focusout', schedule, true\)/, '必须监听 focusout');
+  // 解绑要对称，否则热更新会叠加监听器
+  assert.match(source, /removeEventListener\('focusin', schedule, true\)/, '解绑必须对称');
+  assert.match(source, /removeEventListener\('focusout', schedule, true\)/, '解绑必须对称');
 });
