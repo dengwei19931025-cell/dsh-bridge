@@ -1001,6 +1001,110 @@ export const MOBILE_STYLES_CSS = `
         min-width: 0 !important;
       }
 
+      /* 3.2 会话视图标签条：适配宿主新增的「更多会话视图」折叠逻辑（2026-10）
+         宿主 dsh-client-ui-conversation 按标签行的测量宽度决定显示几个视图：
+           visibleLimit = max(1, floor((row.clientWidth - 48) / 120))
+         皮肤 dsh-claude-style 把标签行压进约 76px 的胶囊列，于是 440px 手机上只显示
+         「对话」+「…」，用户原本的 对话/轨迹/上下文/编队 四个视图全被收进「更多」，
+         头部还剩一条按桌面宽度算出的 transform 偏移 → 视觉上像渲染坏了。
+
+         修法：把整栏合成**一条居中的胶囊**：
+           [对话 轨迹 上下文 编队 | ⋯更多 | ⌄ | ▯]
+         标签行的**测量宽度**固定 528px（floor((528-48)/120)=4，宿主会渲染四个视图），
+         但它的实际占位由 JS（setupViewTabsCapsule）按可见内容宽度写负 margin-right
+         收窄，于是后面的工具按钮紧贴「更多」；整条胶囊由 header 的 flex 居中。
+         320px 以下标签行降到 408px（三个视图 + 更多），保证不横向溢出。
+         只在「更多」按钮存在时生效：只有 3 个视图、没有折叠的老宿主保持原样。 */
+      body[data-dsh-claude-style] header[data-window-drag]:has([data-conversation-tabs]):has([data-dsh-claude-part="view-tabs-more"]) {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 0 !important;
+        height: auto !important;
+        grid-template-columns: none !important;
+        grid-template-rows: none !important;
+      }
+      body[data-dsh-claude-style] header[data-window-drag]:has([data-conversation-tabs]):has([data-dsh-claude-part="view-tabs-more"]) [data-dsh-claude-part="header-leading"],
+      body[data-dsh-claude-style] header[data-window-drag]:has([data-conversation-tabs]):has([data-dsh-claude-part="view-tabs-more"]) [data-dsh-claude-part="title-cluster"] {
+        display: none !important;
+      }
+      /* 标签行：测量宽 528px（让宿主渲染 4 个视图），实际占位由 JS 负 margin 收窄。
+         行本身不接收指针事件，避免它 528px 的空盒子挡住后面的工具按钮。 */
+      body[data-dsh-claude-style] header[data-window-drag]:has([data-conversation-tabs]):has([data-dsh-claude-part="view-tabs-more"]) div:has(> [data-conversation-tabs]) {
+        order: 1 !important;
+        flex: 0 0 auto !important;
+        width: 528px !important;
+        min-width: 528px !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        gap: 0 !important;
+        justify-content: flex-start !important;
+        transform: none !important;
+        pointer-events: none !important;
+        --dsh-view-tabs-shift: 0px !important;
+      }
+      @media (max-width: 359px) {
+        body[data-dsh-claude-style] header[data-window-drag]:has([data-conversation-tabs]):has([data-dsh-claude-part="view-tabs-more"]) div:has(> [data-conversation-tabs]) {
+          width: 408px !important;
+          min-width: 408px !important;
+        }
+      }
+      body[data-dsh-claude-style] header[data-window-drag]:has([data-conversation-tabs]):has([data-dsh-claude-part="view-tabs-more"]) div:has(> [data-conversation-tabs]) > * {
+        pointer-events: auto !important;
+      }
+      /* 胶囊各段：标签组左圆角；更多/工具/角标中段直角；角标右圆角。
+         各段同底色（皮肤悬停底）同高 26px，段间 1px 内阴影当分隔线。 */
+      body[data-dsh-claude-style] header[data-window-drag]:has([data-conversation-tabs]):has([data-dsh-claude-part="view-tabs-more"]) [data-dsh-claude-part="view-tabs-list"] {
+        border-radius: 7px 0 0 7px !important;
+      }
+      body[data-dsh-claude-style] header[data-window-drag]:has([data-conversation-tabs]):has([data-dsh-claude-part="view-tabs-more"]) [data-dsh-claude-part="view-tabs-more"] {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 2px !important;
+        width: auto !important;
+        min-width: 44px !important;
+        height: 26px !important;
+        padding: 0 10px !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        background: var(--dsh-claude-hover-bg, var(--dsw-alias-bg-layer-2, rgba(0, 0, 0, 0.06))) !important;
+        box-shadow: inset 1px 0 0 var(--dsw-alias-border-l2, rgba(0, 0, 0, 0.08)) !important;
+        color: var(--dsw-alias-label-secondary, #6b7280) !important;
+      }
+      body[data-dsh-claude-style] header[data-window-drag]:has([data-conversation-tabs]):has([data-dsh-claude-part="view-tabs-more"]) [data-dsh-claude-part="view-tabs-more"] svg {
+        width: 13px !important;
+        height: 13px !important;
+        flex: none !important;
+      }
+      body[data-dsh-claude-style] header[data-window-drag]:has([data-conversation-tabs]):has([data-dsh-claude-part="view-tabs-more"]) [data-dsh-claude-part="view-tabs-more"]:hover {
+        background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.1)) !important;
+      }
+      html[lang^="zh"] body[data-dsh-claude-style] header[data-window-drag]:has([data-conversation-tabs]):has([data-dsh-claude-part="view-tabs-more"]) [data-dsh-claude-part="view-tabs-more"]::after {
+        content: "更多";
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 18px;
+        white-space: nowrap;
+      }
+      /* 工具组 / 角标接入同一胶囊：清掉网格定位，按 flex order 排在标签行之后。 */
+      body[data-dsh-claude-style] header[data-window-drag]:has([data-conversation-tabs]):has([data-dsh-claude-part="view-tabs-more"]) [data-dsh-claude-part="header-utilities"] {
+        order: 2 !important;
+        grid-column: auto !important;
+        grid-row: auto !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: inset 1px 0 0 var(--dsw-alias-border-l2, rgba(0, 0, 0, 0.08)) !important;
+      }
+      body[data-dsh-claude-style] header[data-window-drag]:has([data-conversation-tabs]):has([data-dsh-claude-part="view-tabs-more"]) [data-dsh-claude-part="header-corner"] {
+        order: 3 !important;
+        grid-column: auto !important;
+        grid-row: auto !important;
+        margin: 0 !important;
+        border-radius: 0 7px 7px 0 !important;
+        box-shadow: inset 1px 0 0 var(--dsw-alias-border-l2, rgba(0, 0, 0, 0.08)) !important;
+      }
+
       /* 4. 原生侧边栏抽屉化 (Drawer) */
       div[class*="_sidebarCol"] {
         position: fixed !important;

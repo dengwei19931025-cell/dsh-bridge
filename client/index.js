@@ -5267,6 +5267,99 @@ function setupComposerCollapse() {
 }
 
 
+// 会话视图标签行的「测量宽度 / 实际占位」分离（配合 mobile-styles.js 3.2）。
+//
+// 宿主 dsh-client-ui-conversation 用标签行的 clientWidth 决定渲染几个视图：
+//   visibleLimit = max(1, floor((row.clientWidth - 48) / 120))
+// 皮肤 dsh-claude-style 把标签行压得很窄，于是只剩「对话 + 更多」。CSS 把行宽固定为
+// 528px（→ 4 个视图），但 528px 的**布局宽度**会把后面的工具按钮推走。这里在运行时
+// 量出标签内容的实际宽度，把行盒的 margin-right 写成负值，让它的**占位**缩到内容宽度；
+// row.clientWidth 仍是 528，宿主不会重新折叠，工具按钮也能紧贴「更多」，
+// 整条胶囊由 header 的 flex 居中。窗口宽度 <360 时 CSS 把行宽降到 408（3 个视图）。
+function setupViewTabsCapsule(ctx) {
+  if (typeof window === 'undefined' || typeof document === 'undefined' || typeof MutationObserver === 'undefined') return;
+  if (window.innerWidth > MOBILE_MAX_WIDTH) return;
+  if (shouldYieldAllPageTweaks()) return;
+
+  let raf = 0;
+  let observedRow = null;
+  let childObserver = null;
+
+  const findRow = () => document.querySelector('[data-conversation-tabs]')?.parentElement ?? null;
+
+  const sync = () => {
+    raf = 0;
+    // 离开移动端/皮肤层后必须清掉行内负 margin，否则桌面端会继承这份"收窄占位"。
+    const currentRow = findRow();
+    if (window.innerWidth > MOBILE_MAX_WIDTH || !document.body || !document.body.hasAttribute('data-dsh-claude-style')) {
+      currentRow?.style.removeProperty('margin-right');
+      return;
+    }
+    const row = currentRow;
+    if (!row) return;
+    const tabList = row.querySelector('[data-dsh-claude-part="view-tabs-list"]');
+    const more = row.querySelector('[data-dsh-claude-part="view-tabs-more"]');
+    if (!tabList || !more) return;
+    const contentW = more.getBoundingClientRect().right - tabList.getBoundingClientRect().left;
+    const rowW = row.getBoundingClientRect().width;
+    if (!(contentW > 0) || !(rowW > 0)) return;
+    const margin = Math.min(0, Math.round(contentW - rowW));
+    if (margin < 0) {
+      row.style.setProperty('margin-right', `${margin}px`, 'important');
+    } else {
+      row.style.removeProperty('margin-right');
+    }
+  };
+
+  const schedule = () => {
+    if (raf) return;
+    raf = window.requestAnimationFrame(sync);
+  };
+
+  const bind = () => {
+    const row = findRow();
+    if (!row) return;
+    if (row !== observedRow) {
+      childObserver?.disconnect();
+      observedRow = row;
+      childObserver = new MutationObserver(schedule);
+      childObserver.observe(row, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
+    }
+    schedule();
+  };
+
+  bind();
+  // 宿主挂载/切换会话后标签行可能晚一点才出现，补两次探测。
+  const t1 = window.setTimeout(bind, 300);
+  const t2 = window.setTimeout(bind, 1200);
+  window.addEventListener('resize', schedule);
+  window.visualViewport?.addEventListener?.('resize', schedule);
+
+  // 标签行被整棵替换（切会话/进设置再回来）时重新绑定；其余 DOM 变化不重复扫。
+  const bodyObserver = new MutationObserver(() => {
+    const row = findRow();
+    if (row && row !== observedRow) bind();
+  });
+  bodyObserver.observe(document.body, { childList: true, subtree: true });
+
+  // 语言切换会改变标签文字宽度，重新量一次。
+  const langObserver = new MutationObserver(schedule);
+  langObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
+
+  if (typeof ctx?.effect === 'function') {
+    ctx.effect(() => () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.removeEventListener('resize', schedule);
+      window.visualViewport?.removeEventListener?.('resize', schedule);
+      bodyObserver.disconnect();
+      langObserver.disconnect();
+      childObserver?.disconnect();
+      if (raf) window.cancelAnimationFrame(raf);
+    }, 'dsh-bridge: view tabs capsule');
+  }
+}
+
 function apply(ctx) {
   window.__dshClientCtx = ctx;
   // 主题令牌优先：后续任何渲染都要能取到告警面/边框的深色值（与移动端让位无关）
@@ -5322,6 +5415,8 @@ function apply(ctx) {
     setupComposerCollapse();
 
     setupMobileExperience(rpcCall, ctx);
+    // 会话视图胶囊：把标签行/更多/工具组合成一条居中胶囊（配合 mobile-styles.js 3.2）。
+    setupViewTabsCapsule(ctx);
   }
 
   const injected = () => ({ pick: () => ctx.workspaces?.pickDirectory?.() });
